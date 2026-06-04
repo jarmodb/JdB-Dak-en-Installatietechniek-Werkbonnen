@@ -513,6 +513,46 @@ tr:last-child td { border-bottom: none; }
   50% { opacity: .3; }
 }
 
+/* === POSTCODE INPUT === */
+.input-met-indicator { position: relative; }
+.input-met-indicator input { width: 100%; }
+.input-spinner { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--goud); animation: spin 1s linear infinite; }
+@keyframes spin { from { transform: translateY(-50%) rotate(0deg); } to { transform: translateY(-50%) rotate(360deg); } }
+
+/* === MICROSOFT / ONEDRIVE === */
+.btn-ms-header {
+  background: none;
+  border: 1px solid rgba(255,255,255,.3);
+  color: white;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-ms-header.ingelogd { border-color: var(--goud); color: var(--goud); }
+.btn-ms-header:hover { background: rgba(255,255,255,.1); }
+
+.ms-login-blok { text-align: center; padding: 16px; background: var(--grijs-licht); border-radius: 8px; }
+.ms-login-blok p { font-size: 13px; color: var(--grijs); margin-bottom: 12px; }
+.btn-ms { background: #0078d4; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.btn-ms:hover { background: #006cbf; }
+
+/* === FOTO'S === */
+.foto-lijst { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.foto-rij { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--grijs-licht); border-radius: 8px; }
+.foto-naam { flex: 1; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.foto-link-btn { font-size: 12px; color: var(--goud-donker); font-weight: 600; text-decoration: none; white-space: nowrap; }
+.foto-link-btn:hover { text-decoration: underline; }
+.foto-badge { margin-left: 4px; font-size: 11px; background: #fff3cd; color: #856404; padding: 1px 6px; border-radius: 10px; }
+
+.bon-foto-lijst { display: flex; flex-wrap: wrap; gap: 8px; }
+.bon-foto-link { display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; background: var(--goud-licht); color: var(--goud-donker); border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; border: 1px solid var(--goud); }
+.bon-foto-link:hover { background: #eddfa0; }
+
+.btn-toevoegen.disabled { opacity: .6; cursor: not-allowed; }
+
 /* === PRINT === */
 @media print {
   body { background: white; }

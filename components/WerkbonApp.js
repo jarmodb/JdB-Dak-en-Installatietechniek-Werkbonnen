@@ -1,31 +1,28 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { genereerUBL } from '@/lib/ubl'
+import { msLogin, msLogout, msGetAccount, uploadFotoNaarOneDrive } from '@/lib/onedrive'
 
 const WERK_TYPES = ['Gas', 'Water', 'Verwarming', 'Sanitair', 'Riolering', 'Dakbedekking', 'Zinkwerken', 'Graafwerkzaamheden']
 
 function euro(n) {
   return '€ ' + Number(n || 0).toFixed(2).replace('.', ',')
 }
-
 function datumNL(iso) {
   if (!iso) return ''
   const [y, m, d] = iso.split('-')
   return `${d}-${m}-${y}`
 }
-
 function vandaag() {
   return new Date().toISOString().split('T')[0]
 }
-
 function genNummer(werkbonnen) {
   const jaar = new Date().getFullYear()
   const dit_jaar = werkbonnen.filter(b => b.nummer?.startsWith('WB-' + jaar))
   return `WB-${jaar}-${String(dit_jaar.length + 1).padStart(3, '0')}`
 }
-
 function bereken(werkdagen, uurtarief, materialen) {
   const totalUren = werkdagen.reduce((s, w) => s + (parseFloat(w.uren) || 0), 0)
   const arbeid = totalUren * (parseFloat(uurtarief) || 0)
@@ -35,19 +32,12 @@ function bereken(werkdagen, uurtarief, materialen) {
   const totaal_incl = excl_btw + btw
   return { arbeid, mat_totaal, excl_btw, btw, totaal_incl, totalUren }
 }
-
 function leegFormulier() {
   return {
-    nummer: '',
-    datum: vandaag(),
-    klant_naam: '',
-    klant_adres: '',
-    klant_postcode: '',
-    klant_plaats: '',
-    klant_tel: '',
-    omschrijving: '',
-    uurtarief: '',
-    notities: '',
+    nummer: '', datum: vandaag(),
+    klant_naam: '', klant_straat: '', klant_huisnummer: '',
+    klant_postcode: '', klant_plaats: '', klant_tel: '',
+    omschrijving: '', uurtarief: '', notities: '',
   }
 }
 
@@ -61,13 +51,21 @@ export default function WerkbonApp() {
   const [werkdagen, setWerkdagen] = useState([])
   const [geselecteerdeTypes, setGeselecteerdeTypes] = useState([])
   const [materialen, setMaterialen] = useState([])
+  const [fotos, setFotos] = useState([])
   const [verwijderModal, setVerwijderModal] = useState(false)
   const [bezig, setBezig] = useState(false)
   const [syncActief, setSyncActief] = useState(false)
+  const [postcodeBezig, setPostcodeBezig] = useState(false)
+  const [msIngelogd, setMsIngelogd] = useState(false)
+  const [fotoUploadBezig, setFotoUploadBezig] = useState(false)
+  const fotoInputRef = useRef(null)
 
   useEffect(() => {
     window.history.replaceState({ view: 'overzicht' }, '')
     laadWerkbonnen()
+
+    // Check Microsoft login status
+    msGetAccount().then(account => setMsIngelogd(!!account))
 
     // Real-time sync
     const channel = supabase
@@ -83,31 +81,20 @@ export default function WerkbonApp() {
     function handlePopState(e) {
       const state = e.state
       if (!state || state.view === 'overzicht') {
-        setView('overzicht')
-        setHuidigeBon(null)
-        setBewerkModus(false)
+        setView('overzicht'); setHuidigeBon(null); setBewerkModus(false)
       } else if (state.view === 'detail') {
-        setView('detail')
-        setHuidigeBon(state.bon)
-        setBewerkModus(false)
+        setView('detail'); setHuidigeBon(state.bon); setBewerkModus(false)
       } else if (state.view === 'formulier') {
         setView('formulier')
       }
     }
-
     window.addEventListener('popstate', handlePopState)
-    return () => {
-      supabase.removeChannel(channel)
-      window.removeEventListener('popstate', handlePopState)
-    }
+    return () => { supabase.removeChannel(channel); window.removeEventListener('popstate', handlePopState) }
   }, [])
 
   async function laadWerkbonnen() {
     setLaden(true)
-    const { data, error } = await supabase
-      .from('werkbonnen')
-      .select('*')
-      .order('aangemaakt', { ascending: false })
+    const { data, error } = await supabase.from('werkbonnen').select('*').order('aangemaakt', { ascending: false })
     if (!error) setWerkbonnen(data || [])
     setLaden(false)
   }
@@ -115,28 +102,20 @@ export default function WerkbonApp() {
   // ── Navigatie ────────────────────────────────────────────────────
   function toonOverzicht() {
     window.history.pushState({ view: 'overzicht' }, '')
-    setView('overzicht')
-    setHuidigeBon(null)
-    setBewerkModus(false)
+    setView('overzicht'); setHuidigeBon(null); setBewerkModus(false)
   }
-
   function toonDetail(bon) {
     window.history.pushState({ view: 'detail', bon }, '')
-    setHuidigeBon(bon)
-    setView('detail')
+    setHuidigeBon(bon); setView('detail')
   }
-
   function nieuweWerkbon() {
     window.history.pushState({ view: 'formulier' }, '')
-    setBewerkModus(false)
-    setHuidigeBon(null)
+    setBewerkModus(false); setHuidigeBon(null)
     setFormulier({ ...leegFormulier(), nummer: genNummer(werkbonnen) })
     setWerkdagen([{ datum: vandaag(), omschrijving: '', uren: '' }])
-    setGeselecteerdeTypes([])
-    setMaterialen([])
+    setGeselecteerdeTypes([]); setMaterialen([]); setFotos([])
     setView('formulier')
   }
-
   function bewerkWerkbon() {
     if (!huidigeBon) return
     window.history.pushState({ view: 'formulier', bon: huidigeBon }, '')
@@ -145,7 +124,8 @@ export default function WerkbonApp() {
       nummer: huidigeBon.nummer || '',
       datum: huidigeBon.datum || vandaag(),
       klant_naam: huidigeBon.klant_naam || '',
-      klant_adres: huidigeBon.klant_adres || '',
+      klant_straat: huidigeBon.klant_adres || '',   // bestaand adres in straatveld
+      klant_huisnummer: '',
       klant_postcode: huidigeBon.klant_postcode || '',
       klant_plaats: huidigeBon.klant_plaats || '',
       klant_tel: huidigeBon.klant_tel || '',
@@ -156,52 +136,82 @@ export default function WerkbonApp() {
     setWerkdagen(huidigeBon.werkdagen?.length ? huidigeBon.werkdagen : [{ datum: vandaag(), omschrijving: '', uren: '' }])
     setGeselecteerdeTypes(huidigeBon.type ? huidigeBon.type.split(', ').filter(Boolean) : [])
     setMaterialen(huidigeBon.materialen || [])
+    setFotos(huidigeBon.fotos || [])
     setView('formulier')
   }
 
-  // ── Formulier ────────────────────────────────────────────────────
-  function setVeld(key, val) {
-    setFormulier(f => ({ ...f, [key]: val }))
-  }
+  // ── Formulier helpers ────────────────────────────────────────────
+  function setVeld(key, val) { setFormulier(f => ({ ...f, [key]: val })) }
 
   function toggleType(type) {
-    setGeselecteerdeTypes(t =>
-      t.includes(type) ? t.filter(x => x !== type) : [...t, type]
-    )
+    setGeselecteerdeTypes(t => t.includes(type) ? t.filter(x => x !== type) : [...t, type])
+  }
+
+  // Postcode lookup (PDOK — gratis overheids-API)
+  async function postcodeOpzoeken() {
+    const pc = formulier.klant_postcode.replace(/\s/g, '')
+    if (pc.length < 6) return
+    setPostcodeBezig(true)
+    try {
+      const q = formulier.klant_huisnummer ? `${pc} ${formulier.klant_huisnummer}` : pc
+      const res = await fetch(
+        `https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?q=${encodeURIComponent(q)}&fl=straatnaam,woonplaatsnaam&rows=1`
+      )
+      const data = await res.json()
+      const hit = data.response?.docs?.[0]
+      if (hit) {
+        if (hit.straatnaam) setVeld('klant_straat', hit.straatnaam)
+        if (hit.woonplaatsnaam) setVeld('klant_plaats', hit.woonplaatsnaam)
+      }
+    } catch { /* stil falen */ }
+    setPostcodeBezig(false)
   }
 
   // Werkdagen
-  function voegWerkdagToe() {
-    setWerkdagen(w => [...w, { datum: vandaag(), omschrijving: '', uren: '' }])
-  }
-  function updateWerkdag(idx, key, val) {
-    setWerkdagen(w => w.map((item, i) => i === idx ? { ...item, [key]: val } : item))
-  }
-  function verwijderWerkdag(idx) {
-    setWerkdagen(w => w.filter((_, i) => i !== idx))
-  }
+  function voegWerkdagToe() { setWerkdagen(w => [...w, { datum: vandaag(), omschrijving: '', uren: '' }]) }
+  function updateWerkdag(idx, key, val) { setWerkdagen(w => w.map((item, i) => i === idx ? { ...item, [key]: val } : item)) }
+  function verwijderWerkdag(idx) { setWerkdagen(w => w.filter((_, i) => i !== idx)) }
 
   // Materialen
-  function voegMateriaaltoe() {
-    setMaterialen(m => [...m, { omschrijving: '', aantal: '', prijs: '' }])
+  function voegMateriaaltoe() { setMaterialen(m => [...m, { omschrijving: '', aantal: '', prijs: '' }]) }
+  function updateMateriaal(idx, key, val) { setMaterialen(m => m.map((item, i) => i === idx ? { ...item, [key]: val } : item)) }
+  function verwijderMateriaal(idx) { setMaterialen(m => m.filter((_, i) => i !== idx)) }
+
+  // Microsoft / OneDrive
+  async function handleMsLogin() {
+    try {
+      await msLogin()
+      setMsIngelogd(true)
+    } catch (e) { alert('Inloggen mislukt: ' + e.message) }
   }
-  function updateMateriaal(idx, key, val) {
-    setMaterialen(m => m.map((item, i) => i === idx ? { ...item, [key]: val } : item))
+  async function handleMsLogout() {
+    await msLogout()
+    setMsIngelogd(false)
   }
-  function verwijderMateriaal(idx) {
-    setMaterialen(m => m.filter((_, i) => i !== idx))
+  async function handleFotoKiezen(e) {
+    const bestanden = Array.from(e.target.files)
+    if (!bestanden.length) return
+    setFotoUploadBezig(true)
+    const nummer = formulier.nummer || 'concept'
+    for (const bestand of bestanden) {
+      try {
+        const foto = await uploadFotoNaarOneDrive(bestand, nummer)
+        setFotos(f => [...f, foto])
+      } catch (err) { alert(`Upload mislukt voor ${bestand.name}: ${err.message}`) }
+    }
+    setFotoUploadBezig(false)
+    if (fotoInputRef.current) fotoInputRef.current.value = ''
   }
+  function verwijderFoto(idx) { setFotos(f => f.filter((_, i) => i !== idx)) }
 
   async function slaWerkbonOp() {
     setBezig(true)
     const geldigeWerkdagen = werkdagen
       .filter(w => w.datum || w.omschrijving || w.uren)
       .map(w => ({ datum: w.datum, omschrijving: w.omschrijving, uren: parseFloat(w.uren) || 0 }))
-
     const geldigeMat = materialen
       .filter(m => m.omschrijving || m.aantal || m.prijs)
       .map(m => ({ omschrijving: m.omschrijving, aantal: parseFloat(m.aantal) || 0, prijs: parseFloat(m.prijs) || 0 }))
-
     const totalen = bereken(geldigeWerkdagen, formulier.uurtarief, geldigeMat)
 
     const rij = {
@@ -209,7 +219,7 @@ export default function WerkbonApp() {
       datum: formulier.datum,
       type: geselecteerdeTypes.join(', '),
       klant_naam: formulier.klant_naam,
-      klant_adres: formulier.klant_adres,
+      klant_adres: [formulier.klant_straat, formulier.klant_huisnummer].filter(Boolean).join(' '),
       klant_postcode: formulier.klant_postcode,
       klant_plaats: formulier.klant_plaats,
       klant_tel: formulier.klant_tel,
@@ -218,6 +228,7 @@ export default function WerkbonApp() {
       uurtarief: parseFloat(formulier.uurtarief) || 0,
       werkdagen: geldigeWerkdagen,
       materialen: geldigeMat,
+      fotos,
       notities: formulier.notities,
       arbeid: totalen.arbeid,
       mat_totaal: totalen.mat_totaal,
@@ -234,7 +245,6 @@ export default function WerkbonApp() {
       const { data } = await supabase.from('werkbonnen').insert(rij).select().single()
       result = data
     }
-
     await laadWerkbonnen()
     setBezig(false)
     if (result) toonDetail(result)
@@ -250,7 +260,6 @@ export default function WerkbonApp() {
     setHuidigeBon(bijgewerkt)
     setWerkbonnen(w => w.map(b => b.id === huidigeBon.id ? bijgewerkt : b))
   }
-
   async function verwijderWerkbon() {
     if (!huidigeBon) return
     await supabase.from('werkbonnen').delete().eq('id', huidigeBon.id)
@@ -258,23 +267,18 @@ export default function WerkbonApp() {
     await laadWerkbonnen()
     toonOverzicht()
   }
-
   function exporteerUBL() {
     if (!huidigeBon) return
     const xml = genereerUBL(huidigeBon)
     const blob = new Blob([xml], { type: 'application/xml' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
-    a.href = url
-    a.download = `${huidigeBon.nummer}.xml`
-    a.click()
+    a.href = url; a.download = `${huidigeBon.nummer}.xml`; a.click()
     URL.revokeObjectURL(url)
   }
 
-  // Live berekening
   const totalen = bereken(werkdagen, formulier.uurtarief, materialen)
   const totalUrenDisplay = totalen.totalUren
-
   const headerTitel = view === 'overzicht' ? 'JdB Werkbonnen'
     : view === 'formulier' ? (bewerkModus ? 'Bewerken' : 'Nieuwe werkbon')
     : huidigeBon?.nummer || ''
@@ -284,12 +288,17 @@ export default function WerkbonApp() {
     <>
       <header>
         <div>
-          <h1>
-            {headerTitel}
-            {syncActief && <span className="sync-dot" title="Synchroniseren..." />}
-          </h1>
+          <h1>{headerTitel}{syncActief && <span className="sync-dot" />}</h1>
           {headerSub && <span>{headerSub}</span>}
         </div>
+        {/* Microsoft login knop in header */}
+        <button
+          className={`btn-ms-header ${msIngelogd ? 'ingelogd' : ''}`}
+          onClick={msIngelogd ? handleMsLogout : handleMsLogin}
+          title={msIngelogd ? 'Uitloggen bij Microsoft' : 'Inloggen voor foto-upload'}
+        >
+          {msIngelogd ? '☁️ MS ✓' : '☁️ MS'}
+        </button>
       </header>
 
       {/* ── OVERZICHT ── */}
@@ -298,34 +307,30 @@ export default function WerkbonApp() {
           <div className="overzicht-header">
             <h2>{werkbonnen.length} {werkbonnen.length === 1 ? 'werkbon' : 'werkbonnen'}</h2>
           </div>
-
-          {laden ? (
-            <div className="laden">Laden...</div>
-          ) : werkbonnen.length === 0 ? (
-            <div className="leeg">
-              <p>Nog geen werkbonnen.<br />Tik op <strong>+</strong> om te beginnen.</p>
-            </div>
-          ) : (
-            <div className="bon-lijst">
-              {werkbonnen.map(bon => (
-                <div key={bon.id} className="bon-kaart" onClick={() => toonDetail(bon)}>
-                  <div className="bon-nummer">{bon.nummer}</div>
-                  <div className="bon-info">
-                    <div className="bon-klant">{bon.klant_naam || '(geen naam)'}</div>
-                    <div className="bon-meta">
-                      {datumNL(bon.datum)} &bull; {bon.type || '–'} &bull; {' '}
-                      <span className={`status-badge ${bon.gefactureerd ? 'status-gefactureerd' : 'status-open'}`}>
-                        {bon.gefactureerd ? 'Gefactureerd' : 'Open'}
-                      </span>
+          {laden ? <div className="laden">Laden...</div>
+            : werkbonnen.length === 0 ? (
+              <div className="leeg"><p>Nog geen werkbonnen.<br />Tik op <strong>+</strong> om te beginnen.</p></div>
+            ) : (
+              <div className="bon-lijst">
+                {werkbonnen.map(bon => (
+                  <div key={bon.id} className="bon-kaart" onClick={() => toonDetail(bon)}>
+                    <div className="bon-nummer">{bon.nummer}</div>
+                    <div className="bon-info">
+                      <div className="bon-klant">{bon.klant_naam || '(geen naam)'}</div>
+                      <div className="bon-meta">
+                        {datumNL(bon.datum)} &bull; {bon.type || '–'} &bull; {' '}
+                        <span className={`status-badge ${bon.gefactureerd ? 'status-gefactureerd' : 'status-open'}`}>
+                          {bon.gefactureerd ? 'Gefactureerd' : 'Open'}
+                        </span>
+                        {bon.fotos?.length > 0 && <span className="foto-badge">📷 {bon.fotos.length}</span>}
+                      </div>
                     </div>
+                    <div className="bon-totaal">{euro(bon.totaal_incl)}</div>
                   </div>
-                  <div className="bon-totaal">{euro(bon.totaal_incl)}</div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <button className="fab" onClick={nieuweWerkbon} title="Nieuwe werkbon">+</button>
+                ))}
+              </div>
+            )}
+          <button className="fab" onClick={nieuweWerkbon}>+</button>
         </div>
       )}
 
@@ -352,10 +357,7 @@ export default function WerkbonApp() {
             <div className="sectie-titel">Type werkzaamheden</div>
             <div className="type-grid">
               {WERK_TYPES.map(type => (
-                <label
-                  key={type}
-                  className={`type-optie ${geselecteerdeTypes.includes(type) ? 'geselecteerd' : ''}`}
-                >
+                <label key={type} className={`type-optie ${geselecteerdeTypes.includes(type) ? 'geselecteerd' : ''}`}>
                   <input type="checkbox" checked={geselecteerdeTypes.includes(type)} onChange={() => toggleType(type)} />
                   <div className="type-vinkje">{geselecteerdeTypes.includes(type) ? '✓' : ''}</div>
                   <span className="type-label">{type}</span>
@@ -370,18 +372,40 @@ export default function WerkbonApp() {
               <label>Naam</label>
               <input type="text" value={formulier.klant_naam} onChange={e => setVeld('klant_naam', e.target.value)} placeholder="Voornaam Achternaam" />
             </div>
-            <div className="veld">
-              <label>Adres</label>
-              <input type="text" value={formulier.klant_adres} onChange={e => setVeld('klant_adres', e.target.value)} placeholder="Straat en huisnummer" />
-            </div>
+            {/* Postcode + huisnummer eerst voor auto-lookup */}
             <div className="rij-2">
               <div className="veld">
                 <label>Postcode</label>
-                <input type="text" value={formulier.klant_postcode} onChange={e => setVeld('klant_postcode', e.target.value)} placeholder="1234 AB" />
+                <div className="input-met-indicator">
+                  <input
+                    type="text"
+                    value={formulier.klant_postcode}
+                    onChange={e => setVeld('klant_postcode', e.target.value)}
+                    onBlur={postcodeOpzoeken}
+                    placeholder="1234 AB"
+                  />
+                  {postcodeBezig && <span className="input-spinner">⟳</span>}
+                </div>
+              </div>
+              <div className="veld">
+                <label>Huisnummer</label>
+                <input
+                  type="text"
+                  value={formulier.klant_huisnummer}
+                  onChange={e => setVeld('klant_huisnummer', e.target.value)}
+                  onBlur={postcodeOpzoeken}
+                  placeholder="10"
+                />
+              </div>
+            </div>
+            <div className="rij-2">
+              <div className="veld">
+                <label>Straat {postcodeBezig && <span style={{color:'var(--goud)', fontSize:11}}>opzoeken...</span>}</label>
+                <input type="text" value={formulier.klant_straat} onChange={e => setVeld('klant_straat', e.target.value)} placeholder="Automatisch ingevuld" />
               </div>
               <div className="veld">
                 <label>Plaats</label>
-                <input type="text" value={formulier.klant_plaats} onChange={e => setVeld('klant_plaats', e.target.value)} placeholder="Amsterdam" />
+                <input type="text" value={formulier.klant_plaats} onChange={e => setVeld('klant_plaats', e.target.value)} placeholder="Automatisch ingevuld" />
               </div>
             </div>
             <div className="veld">
@@ -392,12 +416,7 @@ export default function WerkbonApp() {
 
           <div className="sectie">
             <div className="sectie-titel">Omschrijving werkzaamheden</div>
-            <textarea
-              value={formulier.omschrijving}
-              onChange={e => setVeld('omschrijving', e.target.value)}
-              placeholder="Beschrijf wat er gedaan is..."
-              rows={3}
-            />
+            <textarea value={formulier.omschrijving} onChange={e => setVeld('omschrijving', e.target.value)} placeholder="Beschrijf wat er gedaan is..." rows={3} />
           </div>
 
           <div className="sectie">
@@ -411,44 +430,18 @@ export default function WerkbonApp() {
             <div className="werkdag-lijst">
               {werkdagen.map((w, i) => (
                 <div key={i} className="werkdag-rij">
-                  <input
-                    type="date"
-                    value={w.datum}
-                    onChange={e => updateWerkdag(i, 'datum', e.target.value)}
-                  />
-                  <input
-                    type="text"
-                    value={w.omschrijving}
-                    onChange={e => updateWerkdag(i, 'omschrijving', e.target.value)}
-                    placeholder="Wat gedaan?"
-                  />
-                  <input
-                    type="number"
-                    value={w.uren}
-                    onChange={e => updateWerkdag(i, 'uren', e.target.value)}
-                    placeholder="0"
-                    min="0"
-                    step="0.5"
-                    style={{ textAlign: 'center' }}
-                  />
+                  <input type="date" value={w.datum} onChange={e => updateWerkdag(i, 'datum', e.target.value)} />
+                  <input type="text" value={w.omschrijving} onChange={e => updateWerkdag(i, 'omschrijving', e.target.value)} placeholder="Wat gedaan?" />
+                  <input type="number" value={w.uren} onChange={e => updateWerkdag(i, 'uren', e.target.value)} placeholder="0" min="0" step="0.5" style={{ textAlign: 'center' }} />
                   <button className="btn-verwijder" onClick={() => verwijderWerkdag(i)}>×</button>
                 </div>
               ))}
             </div>
             <button className="btn-toevoegen" onClick={voegWerkdagToe}>+ Dag toevoegen</button>
-            {totalUrenDisplay > 0 && (
-              <div className="uren-totaal">Totaal: <strong>{totalUrenDisplay} uur</strong></div>
-            )}
+            {totalUrenDisplay > 0 && <div className="uren-totaal">Totaal: <strong>{totalUrenDisplay} uur</strong></div>}
             <div className="veld" style={{ marginTop: 12 }}>
               <label>Uurtarief (€)</label>
-              <input
-                type="number"
-                value={formulier.uurtarief}
-                onChange={e => setVeld('uurtarief', e.target.value)}
-                placeholder="0.00"
-                min="0"
-                step="0.50"
-              />
+              <input type="number" value={formulier.uurtarief} onChange={e => setVeld('uurtarief', e.target.value)} placeholder="0.00" min="0" step="0.50" />
             </div>
           </div>
 
@@ -471,6 +464,41 @@ export default function WerkbonApp() {
               ))}
             </div>
             <button className="btn-toevoegen" onClick={voegMateriaaltoe}>+ Materiaal toevoegen</button>
+          </div>
+
+          {/* FOTO'S */}
+          <div className="sectie">
+            <div className="sectie-titel">Foto's (OneDrive)</div>
+            {!msIngelogd ? (
+              <div className="ms-login-blok">
+                <p>Log in met Microsoft om foto's te uploaden naar OneDrive.</p>
+                <button className="btn btn-ms" onClick={handleMsLogin}>Inloggen met Microsoft</button>
+              </div>
+            ) : (
+              <>
+                <div className="foto-lijst">
+                  {fotos.map((foto, i) => (
+                    <div key={i} className="foto-rij">
+                      <span className="foto-naam">📷 {foto.naam}</span>
+                      <a href={foto.shareUrl} target="_blank" rel="noreferrer" className="foto-link-btn">Bekijk</a>
+                      <button className="btn-verwijder" onClick={() => verwijderFoto(i)}>×</button>
+                    </div>
+                  ))}
+                </div>
+                <label className={`btn-toevoegen ${fotoUploadBezig ? 'disabled' : ''}`}>
+                  {fotoUploadBezig ? '⏳ Uploaden...' : '📷 Foto toevoegen'}
+                  <input
+                    ref={fotoInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    style={{ display: 'none' }}
+                    onChange={handleFotoKiezen}
+                    disabled={fotoUploadBezig}
+                  />
+                </label>
+              </>
+            )}
           </div>
 
           <div className="sectie">
@@ -509,13 +537,10 @@ export default function WerkbonApp() {
             </button>
             <button className="btn btn-gevaar-licht" onClick={() => setVerwijderModal(true)}>🗑️</button>
           </div>
-          <div className="bon-print">
-            <BonAfdruk bon={huidigeBon} />
-          </div>
+          <div className="bon-print"><BonAfdruk bon={huidigeBon} /></div>
         </div>
       )}
 
-      {/* ── MODAL ── */}
       {verwijderModal && (
         <div className="modal-overlay">
           <div className="modal">
@@ -532,11 +557,11 @@ export default function WerkbonApp() {
   )
 }
 
-// ── Bon afdruk ───────────────────────────────────────────────────────
 function BonAfdruk({ bon }) {
   const types = bon.type ? bon.type.split(', ').filter(Boolean) : []
   const werkdagen = bon.werkdagen || []
   const materialen = bon.materialen || []
+  const fotos = bon.fotos || []
   const heeftRegels = werkdagen.length > 0 || materialen.length > 0
 
   return (
@@ -630,6 +655,19 @@ function BonAfdruk({ bon }) {
             <div className="tot-rij eindtotaal"><span>Totaal incl. BTW</span><span>{euro(bon.totaal_incl)}</span></div>
           </div>
         </div>
+
+        {fotos.length > 0 && (
+          <div className="bon-sectie">
+            <div className="bon-sectie-titel">Foto's ({fotos.length})</div>
+            <div className="bon-foto-lijst">
+              {fotos.map((foto, i) => (
+                <a key={i} href={foto.shareUrl} target="_blank" rel="noreferrer" className="bon-foto-link">
+                  📷 {foto.naam}
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="bon-footer">
