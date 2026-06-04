@@ -66,9 +66,10 @@ export default function WerkbonApp() {
   const [syncActief, setSyncActief] = useState(false)
 
   useEffect(() => {
+    window.history.replaceState({ view: 'overzicht' }, '')
     laadWerkbonnen()
 
-    // Real-time sync: luister naar wijzigingen van alle apparaten
+    // Real-time sync
     const channel = supabase
       .channel('werkbonnen-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'werkbonnen' }, () => {
@@ -78,7 +79,27 @@ export default function WerkbonApp() {
       })
       .subscribe()
 
-    return () => supabase.removeChannel(channel)
+    // Browser terugknop
+    function handlePopState(e) {
+      const state = e.state
+      if (!state || state.view === 'overzicht') {
+        setView('overzicht')
+        setHuidigeBon(null)
+        setBewerkModus(false)
+      } else if (state.view === 'detail') {
+        setView('detail')
+        setHuidigeBon(state.bon)
+        setBewerkModus(false)
+      } else if (state.view === 'formulier') {
+        setView('formulier')
+      }
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => {
+      supabase.removeChannel(channel)
+      window.removeEventListener('popstate', handlePopState)
+    }
   }, [])
 
   async function laadWerkbonnen() {
@@ -93,17 +114,20 @@ export default function WerkbonApp() {
 
   // ── Navigatie ────────────────────────────────────────────────────
   function toonOverzicht() {
+    window.history.pushState({ view: 'overzicht' }, '')
     setView('overzicht')
     setHuidigeBon(null)
     setBewerkModus(false)
   }
 
   function toonDetail(bon) {
+    window.history.pushState({ view: 'detail', bon }, '')
     setHuidigeBon(bon)
     setView('detail')
   }
 
   function nieuweWerkbon() {
+    window.history.pushState({ view: 'formulier' }, '')
     setBewerkModus(false)
     setHuidigeBon(null)
     setFormulier({ ...leegFormulier(), nummer: genNummer(werkbonnen) })
@@ -115,6 +139,7 @@ export default function WerkbonApp() {
 
   function bewerkWerkbon() {
     if (!huidigeBon) return
+    window.history.pushState({ view: 'formulier', bon: huidigeBon }, '')
     setBewerkModus(true)
     setFormulier({
       nummer: huidigeBon.nummer || '',
