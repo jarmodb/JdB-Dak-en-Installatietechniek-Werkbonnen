@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Werkbonnen – Jordy</title>
+<style>
+  :root {
+    --blauw: #1a56db;
+    --blauw-licht: #e8f0fe;
+    --grijs: #6b7280;
+    --grijs-licht: #f3f4f6;
+    --grens: #e5e7eb;
+    --tekst: #111827;
+    --rood: #dc2626;
+    --groen: #16a34a;
+    --wit: #ffffff;
+    --schaduw: 0 1px 3px rgba(0,0,0,.1), 0 1px 2px rgba(0,0,0,.06);
+    --schaduw-lg: 0 10px 15px rgba(0,0,0,.1), 0 4px 6px rgba(0,0,0,.05);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--grijs-licht); color: var(--tekst); font-size: 15px; }
+
+  /* === HEADER === */
+  header { background: var(--blauw); color: white; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; box-shadow: var(--schaduw-lg); }
+  header h1 { font-size: 18px; font-weight: 700; }
+  header span { font-size: 13px; opacity: .8; }
+
+  /* === VIEWS === */
+  .view { display: none; }
+  .view.actief { display: block; }
+
+  /* === OVERZICHT === */
+  #overzicht-view { padding: 16px; }
+  .overzicht-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .overzicht-header h2 { font-size: 16px; font-weight: 600; color: var(--grijs); }
+  .bon-lijst { display: flex; flex-direction: column; gap: 10px; }
+  .bon-kaart { background: white; border-radius: 10px; box-shadow: var(--schaduw); padding: 14px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: box-shadow .15s; }
+  .bon-kaart:hover { box-shadow: var(--schaduw-lg); }
+  .bon-nummer { background: var(--blauw-licht); color: var(--blauw); font-weight: 700; font-size: 13px; padding: 4px 10px; border-radius: 6px; white-space: nowrap; }
+  .bon-info { flex: 1; min-width: 0; }
+  .bon-klant { font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bon-meta { font-size: 12px; color: var(--grijs); margin-top: 2px; }
+  .bon-totaal { font-weight: 700; color: var(--tekst); white-space: nowrap; }
+  .leeg { text-align: center; padding: 60px 20px; color: var(--grijs); }
+  .leeg svg { margin-bottom: 12px; opacity: .3; }
+  .leeg p { font-size: 15px; }
+
+  /* === KNOPPEN === */
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: 8px; border: none; font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity .15s, transform .1s; text-decoration: none; }
+  .btn:active { transform: scale(.97); }
+  .btn-primair { background: var(--blauw); color: white; }
+  .btn-primair:hover { opacity: .9; }
+  .btn-gevaar { background: var(--rood); color: white; }
+  .btn-gevaar:hover { opacity: .9; }
+  .btn-licht { background: var(--grijs-licht); color: var(--tekst); }
+  .btn-licht:hover { background: var(--grens); }
+  .btn-groen { background: var(--groen); color: white; }
+  .btn-groen:hover { opacity: .9; }
+  .fab { position: fixed; bottom: 24px; right: 20px; width: 58px; height: 58px; border-radius: 50%; background: var(--blauw); color: white; font-size: 28px; border: none; box-shadow: var(--schaduw-lg); cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 200; transition: transform .15s; }
+  .fab:hover { transform: scale(1.08); }
+
+  /* === FORMULIER === */
+  #form-view { padding: 16px; padding-bottom: 100px; max-width: 640px; margin: 0 auto; }
+  .form-terug { display: flex; align-items: center; gap: 8px; color: var(--blauw); font-weight: 600; font-size: 14px; margin-bottom: 16px; cursor: pointer; background: none; border: none; padding: 0; }
+  .sectie { background: white; border-radius: 10px; box-shadow: var(--schaduw); padding: 16px; margin-bottom: 14px; }
+  .sectie-titel { font-size: 13px; font-weight: 700; text-transform: uppercase; color: var(--grijs); letter-spacing: .5px; margin-bottom: 12px; }
+  .veld { margin-bottom: 12px; }
+  .veld:last-child { margin-bottom: 0; }
+  label { display: block; font-size: 13px; font-weight: 600; color: var(--grijs); margin-bottom: 4px; }
+  input[type=text], input[type=number], input[type=date], input[type=tel], textarea, select {
+    width: 100%; padding: 10px 12px; border: 1.5px solid var(--grens); border-radius: 8px; font-size: 15px;
+    font-family: inherit; background: white; color: var(--tekst); transition: border-color .15s;
+  }
+  input:focus, textarea:focus, select:focus { outline: none; border-color: var(--blauw); }
+  textarea { resize: vertical; min-height: 80px; }
+  .rij-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* === MATERIALEN === */
+  .materialen-lijst { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+  .materiaal-rij { display: grid; grid-template-columns: 1fr 70px 90px 32px; gap: 6px; align-items: center; }
+  .materiaal-rij input { padding: 8px 10px; }
+  .btn-verwijder { background: none; border: none; color: var(--rood); font-size: 20px; cursor: pointer; padding: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px; }
+  .btn-verwijder:hover { background: #fee2e2; }
+  .mat-label { font-size: 11px; color: var(--grijs); text-align: center; }
+  .mat-labels { display: grid; grid-template-columns: 1fr 70px 90px 32px; gap: 6px; margin-bottom: 2px; }
+  .btn-toevoegen { background: var(--blauw-licht); color: var(--blauw); border: 2px dashed #93b4f0; border-radius: 8px; padding: 8px; width: 100%; font-size: 14px; font-weight: 600; cursor: pointer; transition: background .15s; }
+  .btn-toevoegen:hover { background: #d1e0fc; }
+
+  /* === TOTAAL === */
+  .totaal-rij { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--grens); font-size: 14px; }
+  .totaal-rij:last-child { border-bottom: none; font-size: 16px; font-weight: 700; padding-top: 10px; }
+  .totaal-rij span:last-child { font-weight: 600; }
+
+  /* === FORM ACTIES === */
+  .form-acties { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid var(--grens); padding: 12px 16px; display: flex; gap: 10px; z-index: 100; }
+  .form-acties .btn { flex: 1; justify-content: center; }
+
+  /* === DETAIL VIEW === */
+  #detail-view { padding: 16px; padding-bottom: 80px; max-width: 640px; margin: 0 auto; }
+  .detail-acties { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .bon-print { background: white; border-radius: 10px; box-shadow: var(--schaduw); overflow: hidden; }
+  .bon-kop { background: var(--blauw); color: white; padding: 20px 20px 16px; }
+  .bon-kop-rij { display: flex; justify-content: space-between; align-items: flex-start; }
+  .bon-bedrijf { font-size: 20px; font-weight: 800; }
+  .bon-kop-nr { text-align: right; }
+  .bon-kop-nr .nr { font-size: 22px; font-weight: 800; }
+  .bon-kop-nr .datum { font-size: 13px; opacity: .8; margin-top: 2px; }
+  .bon-kop-sub { font-size: 13px; opacity: .75; margin-top: 4px; }
+  .bon-body { padding: 20px; }
+  .bon-sectie { margin-bottom: 20px; }
+  .bon-sectie-titel { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--grijs); letter-spacing: .5px; margin-bottom: 8px; }
+  .bon-klant-info p { margin-bottom: 2px; font-size: 14px; }
+  .bon-omschrijving { font-size: 14px; line-height: 1.6; background: var(--grijs-licht); border-radius: 8px; padding: 10px 12px; white-space: pre-wrap; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; font-size: 11px; text-transform: uppercase; color: var(--grijs); padding: 0 0 6px; border-bottom: 2px solid var(--grens); }
+  th:last-child, td:last-child { text-align: right; }
+  td { padding: 6px 0; border-bottom: 1px solid var(--grens); }
+  tr:last-child td { border-bottom: none; }
+  .bon-totaal-blok { background: var(--grijs-licht); border-radius: 8px; padding: 12px 14px; }
+  .tot-rij { display: flex; justify-content: space-between; font-size: 14px; padding: 3px 0; }
+  .tot-rij.eindtotaal { font-size: 16px; font-weight: 800; border-top: 2px solid var(--grens); margin-top: 6px; padding-top: 8px; }
+  .bon-footer { text-align: center; color: var(--grijs); font-size: 12px; padding: 14px; border-top: 1px solid var(--grens); }
+  .status-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+  .status-open { background: #fef3c7; color: #92400e; }
+  .status-gefactureerd { background: #d1fae5; color: #065f46; }
+
+  /* === CONFIRM MODAL === */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 300; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.actief { display: flex; }
+  .modal { background: white; border-radius: 12px; padding: 24px; max-width: 320px; width: 100%; }
+  .modal h3 { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+  .modal p { color: var(--grijs); font-size: 14px; margin-bottom: 20px; }
+  .modal-acties { display: flex; gap: 10px; }
+  .modal-acties .btn { flex: 1; justify-content: center; }
+
+  /* === PRINT === */
+  @media print {
+    body { background: white; }
+    header, .form-terug, .detail-acties, .fab, .modal-overlay, #overzicht-view, #form-view, .bon-footer { display: none !important; }
+    #detail-view { display: block !important; padding: 0; max-width: 100%; }
+    .bon-print { box-shadow: none; border-radius: 0; }
+    .bon-kop { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+
+  @media (max-width: 400px) {
+    .materiaal-rij { grid-template-columns: 1fr 60px 80px 30px; }
+    .mat-labels { grid-template-columns: 1fr 60px 80px 30px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1 id="header-titel">Werkbonnen</h1>
+  <span id="header-sub"></span>
+</header>
+
+<!-- OVERZICHT -->
+<div id="overzicht-view" class="view actief">
+  <div id="overzicht-content" style="padding:16px;">
+    <div class="overzicht-header">
+      <h2 id="bon-teller">0 werkbonnen</h2>
+    </div>
+    <div id="bon-lijst" class="bon-lijst"></div>
+    <div id="leeg-melding" class="leeg">
+      <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+      <p>Nog geen werkbonnen.<br>Tik op <strong>+</strong> om te beginnen.</p>
+    </div>
+  </div>
+  <button class="fab" onclick="nieuweWerkbon()">+</button>
+</div>
+
+<!-- FORMULIER -->
+<div id="form-view" class="view">
+  <button class="form-terug" onclick="toonOverzicht()">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 19l-7-7 7-7"/></svg>
+    Terug
+  </button>
+
+  <div class="sectie">
+    <div class="sectie-titel">Werkbon info</div>
+    <div class="rij-2">
+      <div class="veld">
+        <label>Bonnummer</label>
+        <input type="text" id="f-nummer" readonly style="background:var(--grijs-licht); color:var(--grijs)">
+      </div>
+      <div class="veld">
+        <label>Datum</label>
+        <input type="date" id="f-datum">
+      </div>
+    </div>
+    <div class="veld">
+      <label>Type werk</label>
+      <select id="f-type">
+        <option value="Loodgieter">Loodgieter</option>
+        <option value="Dakdekker">Dakdekker</option>
+        <option value="Loodgieter + Dakdekker">Loodgieter + Dakdekker</option>
+        <option value="Overig">Overig</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="sectie">
+    <div class="sectie-titel">Klantgegevens</div>
+    <div class="veld">
+      <label>Naam</label>
+      <input type="text" id="f-naam" placeholder="Voornaam Achternaam">
+    </div>
+    <div class="veld">
+      <label>Adres</label>
+      <input type="text" id="f-adres" placeholder="Straat en huisnummer">
+    </div>
+    <div class="rij-2">
+      <div class="veld">
+        <label>Postcode</label>
+        <input type="text" id="f-postcode" placeholder="1234 AB">
+      </div>
+      <div class="veld">
+        <label>Plaats</label>
+        <input type="text" id="f-plaats" placeholder="Amsterdam">
+      </div>
+    </div>
+    <div class="veld">
+      <label>Telefoon</label>
+      <input type="tel" id="f-telefoon" placeholder="06-12345678">
+    </div>
+  </div>
+
+  <div class="sectie">
+    <div class="sectie-titel">Omschrijving werkzaamheden</div>
+    <div class="veld">
+      <textarea id="f-omschrijving" placeholder="Beschrijf wat er gedaan is..." rows="4"></textarea>
+    </div>
+  </div>
+
+  <div class="sectie">
+    <div class="sectie-titel">Uren</div>
+    <div class="rij-2">
+      <div class="veld">
+        <label>Aantal uren</label>
+        <input type="number" id="f-uren" placeholder="0" min="0" step="0.5" oninput="herbereken()">
+      </div>
+      <div class="veld">
+        <label>Uurtarief (€)</label>
+        <input type="number" id="f-uurtarief" placeholder="0.00" min="0" step="0.50" oninput="herbereken()">
+      </div>
+    </div>
+  </div>
+
+  <div class="sectie">
+    <div class="sectie-titel">Materialen</div>
+    <div class="mat-labels">
+      <span class="mat-label" style="text-align:left">Omschrijving</span>
+      <span class="mat-label">Aantal</span>
+      <span class="mat-label">Prijs (€)</span>
+      <span></span>
+    </div>
+    <div id="materialen-lijst" class="materialen-lijst"></div>
+    <button class="btn-toevoegen" onclick="voegMateriaaltoe()">+ Materiaal toevoegen</button>
+  </div>
+
+  <div class="sectie">
+    <div class="sectie-titel">Totaal overzicht</div>
+    <div id="totaal-overzicht">
+      <div class="totaal-rij"><span>Arbeid</span><span id="t-arbeid">€ 0,00</span></div>
+      <div class="totaal-rij"><span>Materialen</span><span id="t-materialen">€ 0,00</span></div>
+      <div class="totaal-rij"><span>Totaal excl. BTW</span><span id="t-excl">€ 0,00</span></div>
+      <div class="totaal-rij"><span>BTW (21%)</span><span id="t-btw">€ 0,00</span></div>
+      <div class="totaal-rij"><span>Totaal incl. BTW</span><span id="t-incl">€ 0,00</span></div>
+    </div>
+  </div>
+
+  <div class="sectie">
+    <div class="sectie-titel">Notities (intern)</div>
+    <div class="veld">
+      <textarea id="f-notities" placeholder="Interne notities, niet zichtbaar op bon..." rows="2"></textarea>
+    </div>
+  </div>
+
+  <div class="form-acties">
+    <button class="btn btn-licht" onclick="toonOverzicht()">Annuleer</button>
+    <button class="btn btn-primair" onclick="slaWerkbonOp()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg>
+      Opslaan
+    </button>
+  </div>
+</div>
+
+<!-- DETAIL -->
+<div id="detail-view" class="view">
+  <button class="form-terug" onclick="toonOverzicht()">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 19l-7-7 7-7"/></svg>
+    Terug
+  </button>
+
+  <div class="detail-acties">
+    <button class="btn btn-primair" onclick="printWerkbon()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
+      Afdrukken / PDF
+    </button>
+    <button class="btn btn-licht" onclick="bewerkWerkbon()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      Bewerken
+    </button>
+    <button class="btn btn-licht" id="btn-status" onclick="wisselStatus()"></button>
+    <button class="btn btn-gevaar" onclick="bevestigVerwijder()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+    </button>
+  </div>
+
+  <div class="bon-print" id="bon-print-content"></div>
+</div>
+
+<!-- BEVESTIG VERWIJDER MODAL -->
+<div class="modal-overlay" id="verwijder-modal">
+  <div class="modal">
+    <h3>Werkbon verwijderen?</h3>
+    <p>Dit kan niet ongedaan worden gemaakt.</p>
+    <div class="modal-acties">
+      <button class="btn btn-licht" onclick="sluitModal()">Annuleer</button>
+      <button class="btn btn-gevaar" onclick="verwijderWerkbon()">Verwijderen</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────
+let werkbonnen = JSON.parse(localStorage.getItem('werkbonnen') || '[]');
+let huidigeBonId = null;
+let bewerkModus = false;
+
+// ── Opslaan ────────────────────────────────────────────
+function opslaanLokaal() {
+  localStorage.setItem('werkbonnen', JSON.stringify(werkbonnen));
+}
+
+// ── Nummer genereren ───────────────────────────────────
+function genNummer() {
+  const jaar = new Date().getFullYear();
+  const bestaand = werkbonnen.filter(b => b.nummer && b.nummer.startsWith('WB-' + jaar));
+  const volgNr = bestaand.length + 1;
+  return 'WB-' + jaar + '-' + String(volgNr).padStart(3, '0');
+}
+
+// ── Formattering ───────────────────────────────────────
+function euro(n) {
+  return '€ ' + Number(n || 0).toFixed(2).replace('.', ',');
+}
+
+function datumNL(iso) {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-');
+  return d + '-' + m + '-' + y;
+}
+
+// ── Views ──────────────────────────────────────────────
+function toonView(id) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('actief'));
+  document.getElementById(id).classList.add('actief');
+}
+
+function toonOverzicht() {
+  huidigeBonId = null;
+  bewerkModus = false;
+  document.getElementById('header-titel').textContent = 'Werkbonnen';
+  document.getElementById('header-sub').textContent = '';
+  toonView('overzicht-view');
+  renderOverzicht();
+}
+
+function renderOverzicht() {
+  const lijst = document.getElementById('bon-lijst');
+  const leeg = document.getElementById('leeg-melding');
+  const teller = document.getElementById('bon-teller');
+
+  lijst.innerHTML = '';
+  const gesorteerd = [...werkbonnen].sort((a, b) => b.aangemaakt - a.aangemaakt);
+
+  teller.textContent = werkbonnen.length + (werkbonnen.length === 1 ? ' werkbon' : ' werkbonnen');
+
+  if (werkbonnen.length === 0) {
+    leeg.style.display = 'block';
+    return;
+  }
+  leeg.style.display = 'none';
+
+  gesorteerd.forEach(bon => {
+    const kaart = document.createElement('div');
+    kaart.className = 'bon-kaart';
+    kaart.onclick = () => toonDetail(bon.id);
+    kaart.innerHTML = `
+      <div class="bon-nummer">${bon.nummer}</div>
+      <div class="bon-info">
+        <div class="bon-klant">${bon.klantNaam || '(geen naam)'}</div>
+        <div class="bon-meta">${datumNL(bon.datum)} &bull; ${bon.type || ''} &bull; <span class="status-badge ${bon.gefactureerd ? 'status-gefactureerd' : 'status-open'}">${bon.gefactureerd ? 'Gefactureerd' : 'Open'}</span></div>
+      </div>
+      <div class="bon-totaal">${euro(bon.totaalIncl)}</div>
+    `;
+    lijst.appendChild(kaart);
+  });
+}
+
+// ── Nieuw / Bewerken formulier ─────────────────────────
+function nieuweWerkbon() {
+  bewerkModus = false;
+  huidigeBonId = null;
+  resetFormulier();
+  document.getElementById('f-nummer').value = genNummer();
+  document.getElementById('f-datum').value = new Date().toISOString().split('T')[0];
+  // Standaard uurtarief
+  document.getElementById('f-uurtarief').value = '';
+  document.getElementById('header-titel').textContent = 'Nieuwe werkbon';
+  document.getElementById('header-sub').textContent = '';
+  toonView('form-view');
+}
+
+function resetFormulier() {
+  ['f-naam','f-adres','f-postcode','f-plaats','f-telefoon','f-omschrijving','f-notities'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('f-uren').value = '';
+  document.getElementById('f-uurtarief').value = '';
+  document.getElementById('materialen-lijst').innerHTML = '';
+  herbereken();
+}
+
+function bewerkWerkbon() {
+  const bon = werkbonnen.find(b => b.id === huidigeBonId);
+  if (!bon) return;
+  bewerkModus = true;
+  document.getElementById('f-nummer').value = bon.nummer;
+  document.getElementById('f-datum').value = bon.datum;
+  document.getElementById('f-type').value = bon.type || 'Loodgieter';
+  document.getElementById('f-naam').value = bon.klantNaam || '';
+  document.getElementById('f-adres').value = bon.klantAdres || '';
+  document.getElementById('f-postcode').value = bon.klantPostcode || '';
+  document.getElementById('f-plaats').value = bon.klantPlaats || '';
+  document.getElementById('f-telefoon').value = bon.klantTel || '';
+  document.getElementById('f-omschrijving').value = bon.omschrijving || '';
+  document.getElementById('f-uren').value = bon.uren || '';
+  document.getElementById('f-uurtarief').value = bon.uurtarief || '';
+  document.getElementById('f-notities').value = bon.notities || '';
+
+  const ml = document.getElementById('materialen-lijst');
+  ml.innerHTML = '';
+  (bon.materialen || []).forEach(m => voegMateriaaltoe(m));
+
+  document.getElementById('header-titel').textContent = 'Bewerken';
+  document.getElementById('header-sub').textContent = bon.nummer;
+  toonView('form-view');
+  herbereken();
+}
+
+// ── Materialen ─────────────────────────────────────────
+function voegMateriaaltoe(data) {
+  const ml = document.getElementById('materialen-lijst');
+  const rij = document.createElement('div');
+  rij.className = 'materiaal-rij';
+  rij.innerHTML = `
+    <input type="text" placeholder="Omschrijving" value="${data ? escHtml(data.omschrijving) : ''}" class="m-omsch" oninput="herbereken()">
+    <input type="number" placeholder="0" value="${data ? data.aantal : ''}" class="m-aantal" min="0" step="1" oninput="herbereken()" style="text-align:center">
+    <input type="number" placeholder="0,00" value="${data ? data.prijs : ''}" class="m-prijs" min="0" step="0.01" oninput="herbereken()" style="text-align:right">
+    <button class="btn-verwijder" onclick="this.closest('.materiaal-rij').remove(); herbereken()">×</button>
+  `;
+  ml.appendChild(rij);
+}
+
+function getMaterialen() {
+  return [...document.querySelectorAll('.materiaal-rij')].map(rij => ({
+    omschrijving: rij.querySelector('.m-omsch').value,
+    aantal: parseFloat(rij.querySelector('.m-aantal').value) || 0,
+    prijs: parseFloat(rij.querySelector('.m-prijs').value) || 0,
+  })).filter(m => m.omschrijving || m.aantal || m.prijs);
+}
+
+// ── Herberekenen ───────────────────────────────────────
+function herbereken() {
+  const uren = parseFloat(document.getElementById('f-uren').value) || 0;
+  const tarief = parseFloat(document.getElementById('f-uurtarief').value) || 0;
+  const arbeid = uren * tarief;
+  const mat = getMaterialen().reduce((s, m) => s + m.aantal * m.prijs, 0);
+  const exclBtw = arbeid + mat;
+  const btw = exclBtw * 0.21;
+  const inclBtw = exclBtw + btw;
+
+  document.getElementById('t-arbeid').textContent = euro(arbeid);
+  document.getElementById('t-materialen').textContent = euro(mat);
+  document.getElementById('t-excl').textContent = euro(exclBtw);
+  document.getElementById('t-btw').textContent = euro(btw);
+  document.getElementById('t-incl').textContent = euro(inclBtw);
+}
+
+// ── Opslaan ────────────────────────────────────────────
+function slaWerkbonOp() {
+  const uren = parseFloat(document.getElementById('f-uren').value) || 0;
+  const tarief = parseFloat(document.getElementById('f-uurtarief').value) || 0;
+  const arbeid = uren * tarief;
+  const materialen = getMaterialen();
+  const matTotaal = materialen.reduce((s, m) => s + m.aantal * m.prijs, 0);
+  const exclBtw = arbeid + matTotaal;
+  const btw = exclBtw * 0.21;
+  const inclBtw = exclBtw + btw;
+
+  const bon = {
+    id: bewerkModus ? huidigeBonId : Date.now(),
+    aangemaakt: bewerkModus ? (werkbonnen.find(b => b.id === huidigeBonId)?.aangemaakt || Date.now()) : Date.now(),
+    nummer: document.getElementById('f-nummer').value,
+    datum: document.getElementById('f-datum').value,
+    type: document.getElementById('f-type').value,
+    klantNaam: document.getElementById('f-naam').value,
+    klantAdres: document.getElementById('f-adres').value,
+    klantPostcode: document.getElementById('f-postcode').value,
+    klantPlaats: document.getElementById('f-plaats').value,
+    klantTel: document.getElementById('f-telefoon').value,
+    omschrijving: document.getElementById('f-omschrijving').value,
+    uren, uurtarief: tarief, materialen,
+    arbeid, matTotaal, exclBtw, btw, totaalIncl: inclBtw,
+    notities: document.getElementById('f-notities').value,
+    gefactureerd: bewerkModus ? (werkbonnen.find(b => b.id === huidigeBonId)?.gefactureerd || false) : false,
+  };
+
+  if (bewerkModus) {
+    const idx = werkbonnen.findIndex(b => b.id === huidigeBonId);
+    werkbonnen[idx] = bon;
+  } else {
+    werkbonnen.push(bon);
+  }
+  opslaanLokaal();
+  huidigeBonId = bon.id;
+  toonDetail(bon.id);
+}
+
+// ── Detail ─────────────────────────────────────────────
+function toonDetail(id) {
+  huidigeBonId = id;
+  const bon = werkbonnen.find(b => b.id === id);
+  if (!bon) return;
+
+  document.getElementById('header-titel').textContent = bon.nummer;
+  document.getElementById('header-sub').textContent = bon.klantNaam || '';
+
+  const statusBtn = document.getElementById('btn-status');
+  if (bon.gefactureerd) {
+    statusBtn.textContent = '✓ Gefactureerd';
+    statusBtn.className = 'btn btn-licht';
+    statusBtn.style.color = 'var(--groen)';
+  } else {
+    statusBtn.textContent = 'Markeer gefactureerd';
+    statusBtn.className = 'btn btn-licht';
+    statusBtn.style.color = '';
+  }
+
+  const matRijen = (bon.materialen || []).map(m => `
+    <tr>
+      <td>${escHtml(m.omschrijving)}</td>
+      <td style="text-align:center">${m.aantal}</td>
+      <td style="text-align:right">${euro(m.prijs)}</td>
+      <td style="text-align:right">${euro(m.aantal * m.prijs)}</td>
+    </tr>
+  `).join('');
+
+  const urenRij = (bon.uren > 0) ? `
+    <tr>
+      <td>Arbeid (${bon.uren} uur × ${euro(bon.uurtarief)})</td>
+      <td style="text-align:center">${bon.uren}</td>
+      <td style="text-align:right">${euro(bon.uurtarief)}</td>
+      <td style="text-align:right">${euro(bon.arbeid)}</td>
+    </tr>
+  ` : '';
+
+  document.getElementById('bon-print-content').innerHTML = `
+    <div class="bon-kop">
+      <div class="bon-kop-rij">
+        <div>
+          <div class="bon-bedrijf">Jordy – Loodgieter &amp; Dakdekker</div>
+          <div class="bon-kop-sub">${escHtml(bon.type || '')}</div>
+        </div>
+        <div class="bon-kop-nr">
+          <div class="nr">${escHtml(bon.nummer)}</div>
+          <div class="datum">${datumNL(bon.datum)}</div>
+          <div style="margin-top:6px"><span class="status-badge ${bon.gefactureerd ? 'status-gefactureerd' : 'status-open'}">${bon.gefactureerd ? 'Gefactureerd' : 'Open'}</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="bon-body">
+      <div class="bon-sectie">
+        <div class="bon-sectie-titel">Klant</div>
+        <div class="bon-klant-info">
+          <p><strong>${escHtml(bon.klantNaam || '–')}</strong></p>
+          ${bon.klantAdres ? `<p>${escHtml(bon.klantAdres)}</p>` : ''}
+          ${(bon.klantPostcode || bon.klantPlaats) ? `<p>${escHtml(bon.klantPostcode || '')} ${escHtml(bon.klantPlaats || '')}</p>` : ''}
+          ${bon.klantTel ? `<p>📞 ${escHtml(bon.klantTel)}</p>` : ''}
+        </div>
+      </div>
+
+      ${bon.omschrijving ? `
+      <div class="bon-sectie">
+        <div class="bon-sectie-titel">Werkzaamheden</div>
+        <div class="bon-omschrijving">${escHtml(bon.omschrijving)}</div>
+      </div>` : ''}
+
+      ${(bon.uren > 0 || (bon.materialen && bon.materialen.length > 0)) ? `
+      <div class="bon-sectie">
+        <div class="bon-sectie-titel">Specificatie</div>
+        <table>
+          <thead><tr><th>Omschrijving</th><th style="text-align:center">Aantal</th><th style="text-align:right">Prijs</th><th style="text-align:right">Totaal</th></tr></thead>
+          <tbody>${urenRij}${matRijen}</tbody>
+        </table>
+      </div>` : ''}
+
+      <div class="bon-sectie">
+        <div class="bon-totaal-blok">
+          <div class="tot-rij"><span>Subtotaal excl. BTW</span><span>${euro(bon.exclBtw)}</span></div>
+          <div class="tot-rij"><span>BTW 21%</span><span>${euro(bon.btw)}</span></div>
+          <div class="tot-rij eindtotaal"><span>Totaal incl. BTW</span><span>${euro(bon.totaalIncl)}</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="bon-footer">Werkbon gegenereerd op ${new Date().toLocaleDateString('nl-NL')} &bull; Bewaar dit document voor uw administratie</div>
+  `;
+
+  toonView('detail-view');
+}
+
+// ── Acties detail ──────────────────────────────────────
+function printWerkbon() { window.print(); }
+
+function wisselStatus() {
+  const bon = werkbonnen.find(b => b.id === huidigeBonId);
+  if (!bon) return;
+  bon.gefactureerd = !bon.gefactureerd;
+  opslaanLokaal();
+  toonDetail(huidigeBonId);
+}
+
+function bevestigVerwijder() {
+  document.getElementById('verwijder-modal').classList.add('actief');
+}
+
+function sluitModal() {
+  document.getElementById('verwijder-modal').classList.remove('actief');
+}
+
+function verwijderWerkbon() {
+  werkbonnen = werkbonnen.filter(b => b.id !== huidigeBonId);
+  opslaanLokaal();
+  sluitModal();
+  toonOverzicht();
+}
+
+// ── Helper ─────────────────────────────────────────────
+function escHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Init ───────────────────────────────────────────────
+toonOverzicht();
+</script>
+</body>
+</html>

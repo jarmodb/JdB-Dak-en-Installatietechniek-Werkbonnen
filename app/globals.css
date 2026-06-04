@@ -1,0 +1,423 @@
+:root {
+  --blauw: #1a56db;
+  --blauw-licht: #e8f0fe;
+  --grijs: #6b7280;
+  --grijs-licht: #f3f4f6;
+  --grens: #e5e7eb;
+  --tekst: #111827;
+  --rood: #dc2626;
+  --groen: #16a34a;
+  --oranje: #d97706;
+  --wit: #ffffff;
+  --schaduw: 0 1px 3px rgba(0,0,0,.1), 0 1px 2px rgba(0,0,0,.06);
+  --schaduw-lg: 0 10px 15px rgba(0,0,0,.1), 0 4px 6px rgba(0,0,0,.05);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--grijs-licht);
+  color: var(--tekst);
+  font-size: 15px;
+}
+
+/* === HEADER === */
+header {
+  background: var(--blauw);
+  color: white;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: var(--schaduw-lg);
+}
+header h1 { font-size: 18px; font-weight: 700; }
+header span { font-size: 13px; opacity: .8; }
+
+/* === LAYOUT === */
+.view-content { padding: 16px; }
+.form-content { padding-bottom: 90px; max-width: 640px; margin: 0 auto; }
+
+/* === OVERZICHT === */
+.overzicht-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.overzicht-header h2 { font-size: 16px; font-weight: 600; color: var(--grijs); }
+
+.bon-lijst { display: flex; flex-direction: column; gap: 10px; }
+
+.bon-kaart {
+  background: white;
+  border-radius: 10px;
+  box-shadow: var(--schaduw);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: box-shadow .15s;
+}
+.bon-kaart:hover { box-shadow: var(--schaduw-lg); }
+
+.bon-nummer {
+  background: var(--blauw-licht);
+  color: var(--blauw);
+  font-weight: 700;
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.bon-info { flex: 1; min-width: 0; }
+.bon-klant {
+  font-weight: 600;
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bon-meta { font-size: 12px; color: var(--grijs); margin-top: 2px; }
+.bon-totaal { font-weight: 700; color: var(--tekst); white-space: nowrap; }
+
+.leeg { text-align: center; padding: 60px 20px; color: var(--grijs); }
+.leeg p { font-size: 15px; }
+
+.laden { text-align: center; padding: 60px 20px; color: var(--grijs); }
+
+.status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.status-open { background: #fef3c7; color: #92400e; }
+.status-gefactureerd { background: #d1fae5; color: #065f46; }
+
+/* === KNOPPEN === */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity .15s, transform .1s;
+  white-space: nowrap;
+}
+.btn:active { transform: scale(.97); }
+.btn:disabled { opacity: .6; cursor: not-allowed; }
+
+.btn-primair { background: var(--blauw); color: white; }
+.btn-primair:hover:not(:disabled) { opacity: .9; }
+
+.btn-gevaar { background: var(--rood); color: white; }
+.btn-gevaar:hover { opacity: .9; }
+
+.btn-gevaar-licht { background: #fee2e2; color: var(--rood); }
+.btn-gevaar-licht:hover { background: #fecaca; }
+
+.btn-licht { background: var(--grijs-licht); color: var(--tekst); }
+.btn-licht:hover { background: var(--grens); }
+
+.btn-groen { background: var(--groen); color: white; }
+.btn-groen:hover { opacity: .9; }
+
+.btn-groen-licht { background: #d1fae5; color: var(--groen); }
+.btn-groen-licht:hover { background: #a7f3d0; }
+
+.btn-digiboox { background: #fff7ed; color: var(--oranje); border: 1.5px solid #fed7aa; }
+.btn-digiboox:hover { background: #ffedd5; }
+
+.fab {
+  position: fixed;
+  bottom: 24px;
+  right: 20px;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: var(--blauw);
+  color: white;
+  font-size: 28px;
+  border: none;
+  box-shadow: var(--schaduw-lg);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  transition: transform .15s;
+}
+.fab:hover { transform: scale(1.08); }
+
+/* === TERUGKNOP === */
+.form-terug {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--blauw);
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 16px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+/* === DETAIL ACTIES === */
+.detail-acties {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+/* === FORMULIER === */
+.sectie {
+  background: white;
+  border-radius: 10px;
+  box-shadow: var(--schaduw);
+  padding: 16px;
+  margin-bottom: 14px;
+}
+.sectie-titel {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--grijs);
+  letter-spacing: .5px;
+  margin-bottom: 12px;
+}
+.veld { margin-bottom: 12px; }
+.veld:last-child { margin-bottom: 0; }
+label { display: block; font-size: 13px; font-weight: 600; color: var(--grijs); margin-bottom: 4px; }
+
+input[type=text],
+input[type=number],
+input[type=date],
+input[type=tel],
+textarea,
+select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid var(--grens);
+  border-radius: 8px;
+  font-size: 15px;
+  font-family: inherit;
+  background: white;
+  color: var(--tekst);
+  transition: border-color .15s;
+}
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: var(--blauw);
+}
+textarea { resize: vertical; min-height: 80px; }
+.readonly { background: var(--grijs-licht) !important; color: var(--grijs) !important; }
+
+.rij-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* === MATERIALEN === */
+.mat-labels {
+  display: grid;
+  grid-template-columns: 1fr 70px 90px 32px;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.mat-label { font-size: 11px; color: var(--grijs); text-align: center; }
+
+.materialen-lijst { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+
+.materiaal-rij {
+  display: grid;
+  grid-template-columns: 1fr 70px 90px 32px;
+  gap: 6px;
+  align-items: center;
+}
+.materiaal-rij input { padding: 8px 10px; }
+
+.btn-verwijder {
+  background: none;
+  border: none;
+  color: var(--rood);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+}
+.btn-verwijder:hover { background: #fee2e2; }
+
+.btn-toevoegen {
+  background: var(--blauw-licht);
+  color: var(--blauw);
+  border: 2px dashed #93b4f0;
+  border-radius: 8px;
+  padding: 8px;
+  width: 100%;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s;
+}
+.btn-toevoegen:hover { background: #d1e0fc; }
+
+/* === TOTAAL (formulier) === */
+.totaal-rij {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--grens);
+  font-size: 14px;
+}
+.totaal-rij:last-child { border-bottom: none; }
+.totaal-rij.groot { font-size: 16px; font-weight: 700; padding-top: 10px; border-bottom: none; }
+
+/* === FORMULIER ACTIES (sticky) === */
+.form-acties {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  border-top: 1px solid var(--grens);
+  padding: 12px 16px;
+  display: flex;
+  gap: 10px;
+  z-index: 100;
+}
+.form-acties .btn { flex: 1; justify-content: center; }
+
+/* === BON AFDRUK === */
+.bon-print {
+  background: white;
+  border-radius: 10px;
+  box-shadow: var(--schaduw);
+  overflow: hidden;
+  max-width: 640px;
+}
+
+.bon-kop {
+  background: var(--blauw);
+  color: white;
+  padding: 20px 20px 16px;
+}
+.bon-kop-rij { display: flex; justify-content: space-between; align-items: flex-start; }
+.bon-bedrijf { font-size: 20px; font-weight: 800; }
+.bon-kop-sub { font-size: 13px; opacity: .75; margin-top: 4px; }
+.bon-kop-nr { text-align: right; }
+.bon-kop-nr .nr { font-size: 22px; font-weight: 800; }
+.bon-kop-nr .datum { font-size: 13px; opacity: .8; margin-top: 2px; }
+.bon-kop-nr .status-badge { margin-top: 6px; }
+
+.bon-body { padding: 20px; }
+.bon-sectie { margin-bottom: 20px; }
+.bon-sectie-titel {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--grijs);
+  letter-spacing: .5px;
+  margin-bottom: 8px;
+}
+.bon-klant-info p { margin-bottom: 2px; font-size: 14px; }
+.bon-omschrijving {
+  font-size: 14px;
+  line-height: 1.6;
+  background: var(--grijs-licht);
+  border-radius: 8px;
+  padding: 10px 12px;
+  white-space: pre-wrap;
+}
+
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th {
+  text-align: left;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--grijs);
+  padding: 0 0 6px;
+  border-bottom: 2px solid var(--grens);
+}
+th:last-child, td:last-child { text-align: right; }
+td { padding: 6px 0; border-bottom: 1px solid var(--grens); }
+tr:last-child td { border-bottom: none; }
+
+.bon-totaal-blok { background: var(--grijs-licht); border-radius: 8px; padding: 12px 14px; }
+.tot-rij { display: flex; justify-content: space-between; font-size: 14px; padding: 3px 0; }
+.tot-rij.eindtotaal {
+  font-size: 16px;
+  font-weight: 800;
+  border-top: 2px solid var(--grens);
+  margin-top: 6px;
+  padding-top: 8px;
+}
+
+.bon-footer {
+  text-align: center;
+  color: var(--grijs);
+  font-size: 12px;
+  padding: 14px;
+  border-top: 1px solid var(--grens);
+}
+
+/* === MODAL === */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.5);
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.modal {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 320px;
+  width: 100%;
+}
+.modal h3 { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+.modal p { color: var(--grijs); font-size: 14px; margin-bottom: 20px; }
+.modal-acties { display: flex; gap: 10px; }
+.modal-acties .btn { flex: 1; justify-content: center; }
+
+/* === PRINT === */
+@media print {
+  body { background: white; }
+  header,
+  .form-terug,
+  .detail-acties,
+  .fab,
+  .modal-overlay,
+  .bon-footer { display: none !important; }
+  .view-content { padding: 0; }
+  .bon-print { box-shadow: none; border-radius: 0; max-width: 100%; }
+  .bon-kop { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+
+/* === RESPONSIVE === */
+@media (max-width: 420px) {
+  .materiaal-rij { grid-template-columns: 1fr 60px 80px 30px; }
+  .mat-labels { grid-template-columns: 1fr 60px 80px 30px; }
+  .detail-acties { gap: 6px; }
+  .btn { padding: 9px 12px; font-size: 13px; }
+}
