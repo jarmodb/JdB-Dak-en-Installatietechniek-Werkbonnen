@@ -147,21 +147,32 @@ export default function WerkbonApp() {
     setGeselecteerdeTypes(t => t.includes(type) ? t.filter(x => x !== type) : [...t, type])
   }
 
-  // Postcode lookup (PDOK — gratis overheids-API)
-  async function postcodeOpzoeken() {
-    const pc = formulier.klant_postcode.replace(/\s/g, '')
-    if (pc.length < 6) return
+  // Adres lookup via PDOK (gratis overheids-API) — beide richtingen
+  async function adresOpzoeken(richting) {
     setPostcodeBezig(true)
     try {
-      const q = formulier.klant_huisnummer ? `${pc} ${formulier.klant_huisnummer}` : pc
+      let q = ''
+      if (richting === 'postcode') {
+        const pc = formulier.klant_postcode.replace(/\s/g, '')
+        if (pc.length < 6) { setPostcodeBezig(false); return }
+        q = formulier.klant_huisnummer ? `${pc} ${formulier.klant_huisnummer}` : pc
+      } else {
+        // richting === 'straat': zoek postcode via straat + huisnummer + plaats
+        const delen = [formulier.klant_straat, formulier.klant_huisnummer, formulier.klant_plaats].filter(Boolean)
+        if (delen.length < 2) { setPostcodeBezig(false); return }
+        q = delen.join(' ')
+      }
       const res = await fetch(
-        `https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?q=${encodeURIComponent(q)}&fl=straatnaam,woonplaatsnaam&rows=1`
+        `https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?q=${encodeURIComponent(q)}&fl=straatnaam,woonplaatsnaam,postcode&rows=1`
       )
       const data = await res.json()
       const hit = data.response?.docs?.[0]
       if (hit) {
-        if (hit.straatnaam) setVeld('klant_straat', hit.straatnaam)
-        if (hit.woonplaatsnaam) setVeld('klant_plaats', hit.woonplaatsnaam)
+        if (hit.straatnaam && !formulier.klant_straat) setVeld('klant_straat', hit.straatnaam)
+        if (hit.woonplaatsnaam && !formulier.klant_plaats) setVeld('klant_plaats', hit.woonplaatsnaam)
+        if (hit.straatnaam && richting === 'postcode') setVeld('klant_straat', hit.straatnaam)
+        if (hit.woonplaatsnaam && richting === 'postcode') setVeld('klant_plaats', hit.woonplaatsnaam)
+        if (hit.postcode && richting === 'straat' && !formulier.klant_postcode) setVeld('klant_postcode', hit.postcode)
       }
     } catch { /* stil falen */ }
     setPostcodeBezig(false)
@@ -239,10 +250,12 @@ export default function WerkbonApp() {
 
     let result
     if (bewerkModus && huidigeBon) {
-      const { data } = await supabase.from('werkbonnen').update(rij).eq('id', huidigeBon.id).select().single()
+      const { data, error } = await supabase.from('werkbonnen').update(rij).eq('id', huidigeBon.id).select().single()
+      if (error) { alert('Opslaan mislukt: ' + error.message); setBezig(false); return }
       result = data
     } else {
-      const { data } = await supabase.from('werkbonnen').insert(rij).select().single()
+      const { data, error } = await supabase.from('werkbonnen').insert(rij).select().single()
+      if (error) { alert('Opslaan mislukt: ' + error.message); setBezig(false); return }
       result = data
     }
     await laadWerkbonnen()
@@ -381,7 +394,7 @@ export default function WerkbonApp() {
                     type="text"
                     value={formulier.klant_postcode}
                     onChange={e => setVeld('klant_postcode', e.target.value)}
-                    onBlur={postcodeOpzoeken}
+                    onBlur={() => adresOpzoeken('postcode')}
                     placeholder="1234 AB"
                   />
                   {postcodeBezig && <span className="input-spinner">⟳</span>}
@@ -393,7 +406,7 @@ export default function WerkbonApp() {
                   type="text"
                   value={formulier.klant_huisnummer}
                   onChange={e => setVeld('klant_huisnummer', e.target.value)}
-                  onBlur={postcodeOpzoeken}
+                  onBlur={() => adresOpzoeken('postcode')}
                   placeholder="10"
                 />
               </div>
@@ -401,11 +414,11 @@ export default function WerkbonApp() {
             <div className="rij-2">
               <div className="veld">
                 <label>Straat {postcodeBezig && <span style={{color:'var(--goud)', fontSize:11}}>opzoeken...</span>}</label>
-                <input type="text" value={formulier.klant_straat} onChange={e => setVeld('klant_straat', e.target.value)} placeholder="Automatisch ingevuld" />
+                <input type="text" value={formulier.klant_straat} onChange={e => setVeld('klant_straat', e.target.value)} onBlur={() => adresOpzoeken('straat')} placeholder="Automatisch ingevuld" />
               </div>
               <div className="veld">
                 <label>Plaats</label>
-                <input type="text" value={formulier.klant_plaats} onChange={e => setVeld('klant_plaats', e.target.value)} placeholder="Automatisch ingevuld" />
+                <input type="text" value={formulier.klant_plaats} onChange={e => setVeld('klant_plaats', e.target.value)} onBlur={() => adresOpzoeken('straat')} placeholder="Automatisch ingevuld" />
               </div>
             </div>
             <div className="veld">
