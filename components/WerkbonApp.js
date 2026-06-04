@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { genereerUBL } from '@/lib/ubl'
 
-// ── Helpers ─────────────────────────────────────────────────────────
+const WERK_TYPES = ['Gas', 'Water', 'Verwarming', 'Sanitair', 'Riolering', 'Dakbedekking', 'Zinkwerken', 'Graafwerkzaamheden']
+
 function euro(n) {
   return '€ ' + Number(n || 0).toFixed(2).replace('.', ',')
 }
@@ -25,33 +26,31 @@ function genNummer(werkbonnen) {
   return `WB-${jaar}-${String(dit_jaar.length + 1).padStart(3, '0')}`
 }
 
-function bereken(uren, uurtarief, materialen) {
-  const arbeid = (parseFloat(uren) || 0) * (parseFloat(uurtarief) || 0)
+function bereken(werkdagen, uurtarief, materialen) {
+  const totalUren = werkdagen.reduce((s, w) => s + (parseFloat(w.uren) || 0), 0)
+  const arbeid = totalUren * (parseFloat(uurtarief) || 0)
   const mat_totaal = materialen.reduce((s, m) => s + (parseFloat(m.aantal) || 0) * (parseFloat(m.prijs) || 0), 0)
   const excl_btw = arbeid + mat_totaal
   const btw = excl_btw * 0.21
   const totaal_incl = excl_btw + btw
-  return { arbeid, mat_totaal, excl_btw, btw, totaal_incl }
+  return { arbeid, mat_totaal, excl_btw, btw, totaal_incl, totalUren }
 }
 
 function leegFormulier() {
   return {
     nummer: '',
     datum: vandaag(),
-    type: 'Loodgieter',
     klant_naam: '',
     klant_adres: '',
     klant_postcode: '',
     klant_plaats: '',
     klant_tel: '',
     omschrijving: '',
-    uren: '',
     uurtarief: '',
     notities: '',
   }
 }
 
-// ── Hoofd component ──────────────────────────────────────────────────
 export default function WerkbonApp() {
   const [view, setView] = useState('overzicht')
   const [werkbonnen, setWerkbonnen] = useState([])
@@ -59,11 +58,28 @@ export default function WerkbonApp() {
   const [bewerkModus, setBewerkModus] = useState(false)
   const [laden, setLaden] = useState(true)
   const [formulier, setFormulier] = useState(leegFormulier())
+  const [werkdagen, setWerkdagen] = useState([])
+  const [geselecteerdeTypes, setGeselecteerdeTypes] = useState([])
   const [materialen, setMaterialen] = useState([])
   const [verwijderModal, setVerwijderModal] = useState(false)
   const [bezig, setBezig] = useState(false)
+  const [syncActief, setSyncActief] = useState(false)
 
-  useEffect(() => { laadWerkbonnen() }, [])
+  useEffect(() => {
+    laadWerkbonnen()
+
+    // Real-time sync: luister naar wijzigingen van alle apparaten
+    const channel = supabase
+      .channel('werkbonnen-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'werkbonnen' }, () => {
+        setSyncActief(true)
+        laadWerkbonnen()
+        setTimeout(() => setSyncActief(false), 1500)
+      })
+      .subscribe()
+
+    return () => supabase.removeChannel(channel)
+  }, [])
 
   async function laadWerkbonnen() {
     setLaden(true)
@@ -91,6 +107,8 @@ export default function WerkbonApp() {
     setBewerkModus(false)
     setHuidigeBon(null)
     setFormulier({ ...leegFormulier(), nummer: genNummer(werkbonnen) })
+    setWerkdagen([{ datum: vandaag(), omschrijving: '', uren: '' }])
+    setGeselecteerdeTypes([])
     setMaterialen([])
     setView('formulier')
   }
@@ -101,17 +119,17 @@ export default function WerkbonApp() {
     setFormulier({
       nummer: huidigeBon.nummer || '',
       datum: huidigeBon.datum || vandaag(),
-      type: huidigeBon.type || 'Loodgieter',
       klant_naam: huidigeBon.klant_naam || '',
       klant_adres: huidigeBon.klant_adres || '',
       klant_postcode: huidigeBon.klant_postcode || '',
       klant_plaats: huidigeBon.klant_plaats || '',
       klant_tel: huidigeBon.klant_tel || '',
       omschrijving: huidigeBon.omschrijving || '',
-      uren: huidigeBon.uren || '',
       uurtarief: huidigeBon.uurtarief || '',
       notities: huidigeBon.notities || '',
     })
+    setWerkdagen(huidigeBon.werkdagen?.length ? huidigeBon.werkdagen : [{ datum: vandaag(), omschrijving: '', uren: '' }])
+    setGeselecteerdeTypes(huidigeBon.type ? huidigeBon.type.split(', ').filter(Boolean) : [])
     setMaterialen(huidigeBon.materialen || [])
     setView('formulier')
   }
@@ -121,62 +139,74 @@ export default function WerkbonApp() {
     setFormulier(f => ({ ...f, [key]: val }))
   }
 
+  function toggleType(type) {
+    setGeselecteerdeTypes(t =>
+      t.includes(type) ? t.filter(x => x !== type) : [...t, type]
+    )
+  }
+
+  // Werkdagen
+  function voegWerkdagToe() {
+    setWerkdagen(w => [...w, { datum: vandaag(), omschrijving: '', uren: '' }])
+  }
+  function updateWerkdag(idx, key, val) {
+    setWerkdagen(w => w.map((item, i) => i === idx ? { ...item, [key]: val } : item))
+  }
+  function verwijderWerkdag(idx) {
+    setWerkdagen(w => w.filter((_, i) => i !== idx))
+  }
+
+  // Materialen
   function voegMateriaaltoe() {
     setMaterialen(m => [...m, { omschrijving: '', aantal: '', prijs: '' }])
   }
-
   function updateMateriaal(idx, key, val) {
     setMaterialen(m => m.map((item, i) => i === idx ? { ...item, [key]: val } : item))
   }
-
   function verwijderMateriaal(idx) {
     setMaterialen(m => m.filter((_, i) => i !== idx))
   }
 
   async function slaWerkbonOp() {
     setBezig(true)
+    const geldigeWerkdagen = werkdagen
+      .filter(w => w.datum || w.omschrijving || w.uren)
+      .map(w => ({ datum: w.datum, omschrijving: w.omschrijving, uren: parseFloat(w.uren) || 0 }))
+
     const geldigeMat = materialen
       .filter(m => m.omschrijving || m.aantal || m.prijs)
-      .map(m => ({
-        omschrijving: m.omschrijving,
-        aantal: parseFloat(m.aantal) || 0,
-        prijs: parseFloat(m.prijs) || 0,
-      }))
+      .map(m => ({ omschrijving: m.omschrijving, aantal: parseFloat(m.aantal) || 0, prijs: parseFloat(m.prijs) || 0 }))
 
-    const totalen = bereken(formulier.uren, formulier.uurtarief, geldigeMat)
+    const totalen = bereken(geldigeWerkdagen, formulier.uurtarief, geldigeMat)
 
     const rij = {
       nummer: formulier.nummer,
       datum: formulier.datum,
-      type: formulier.type,
+      type: geselecteerdeTypes.join(', '),
       klant_naam: formulier.klant_naam,
       klant_adres: formulier.klant_adres,
       klant_postcode: formulier.klant_postcode,
       klant_plaats: formulier.klant_plaats,
       klant_tel: formulier.klant_tel,
       omschrijving: formulier.omschrijving,
-      uren: parseFloat(formulier.uren) || 0,
+      uren: totalen.totalUren,
       uurtarief: parseFloat(formulier.uurtarief) || 0,
+      werkdagen: geldigeWerkdagen,
       materialen: geldigeMat,
       notities: formulier.notities,
-      ...totalen,
+      arbeid: totalen.arbeid,
+      mat_totaal: totalen.mat_totaal,
+      excl_btw: totalen.excl_btw,
+      btw: totalen.btw,
+      totaal_incl: totalen.totaal_incl,
     }
 
     let result
     if (bewerkModus && huidigeBon) {
-      const { data } = await supabase
-        .from('werkbonnen')
-        .update(rij)
-        .eq('id', huidigeBon.id)
-        .select()
-        .single()
+      const { data } = await supabase.from('werkbonnen').update(rij).eq('id', huidigeBon.id).select().single()
       result = data
     } else {
-      const { data } = await supabase
-        .from('werkbonnen')
-        .insert(rij)
-        .select()
-        .single()
+      const { data } = await supabase.from('werkbonnen').insert(rij).select().single()
       result = data
     }
 
@@ -216,11 +246,11 @@ export default function WerkbonApp() {
     URL.revokeObjectURL(url)
   }
 
-  // Live berekening voor formulier
-  const totalen = bereken(formulier.uren, formulier.uurtarief, materialen)
+  // Live berekening
+  const totalen = bereken(werkdagen, formulier.uurtarief, materialen)
+  const totalUrenDisplay = totalen.totalUren
 
-  // ── Header tekst ─────────────────────────────────────────────────
-  const headerTitel = view === 'overzicht' ? 'Werkbonnen'
+  const headerTitel = view === 'overzicht' ? 'JdB Werkbonnen'
     : view === 'formulier' ? (bewerkModus ? 'Bewerken' : 'Nieuwe werkbon')
     : huidigeBon?.nummer || ''
   const headerSub = view === 'detail' ? (huidigeBon?.klant_naam || '') : ''
@@ -229,7 +259,10 @@ export default function WerkbonApp() {
     <>
       <header>
         <div>
-          <h1>{headerTitel}</h1>
+          <h1>
+            {headerTitel}
+            {syncActief && <span className="sync-dot" title="Synchroniseren..." />}
+          </h1>
           {headerSub && <span>{headerSub}</span>}
         </div>
       </header>
@@ -255,7 +288,7 @@ export default function WerkbonApp() {
                   <div className="bon-info">
                     <div className="bon-klant">{bon.klant_naam || '(geen naam)'}</div>
                     <div className="bon-meta">
-                      {datumNL(bon.datum)} &bull; {bon.type} &bull; {' '}
+                      {datumNL(bon.datum)} &bull; {bon.type || '–'} &bull; {' '}
                       <span className={`status-badge ${bon.gefactureerd ? 'status-gefactureerd' : 'status-open'}`}>
                         {bon.gefactureerd ? 'Gefactureerd' : 'Open'}
                       </span>
@@ -288,14 +321,21 @@ export default function WerkbonApp() {
                 <input type="date" value={formulier.datum} onChange={e => setVeld('datum', e.target.value)} />
               </div>
             </div>
-            <div className="veld">
-              <label>Type werk</label>
-              <select value={formulier.type} onChange={e => setVeld('type', e.target.value)}>
-                <option>Loodgieter</option>
-                <option>Dakdekker</option>
-                <option>Loodgieter + Dakdekker</option>
-                <option>Overig</option>
-              </select>
+          </div>
+
+          <div className="sectie">
+            <div className="sectie-titel">Type werkzaamheden</div>
+            <div className="type-grid">
+              {WERK_TYPES.map(type => (
+                <label
+                  key={type}
+                  className={`type-optie ${geselecteerdeTypes.includes(type) ? 'geselecteerd' : ''}`}
+                >
+                  <input type="checkbox" checked={geselecteerdeTypes.includes(type)} onChange={() => toggleType(type)} />
+                  <div className="type-vinkje">{geselecteerdeTypes.includes(type) ? '✓' : ''}</div>
+                  <span className="type-label">{type}</span>
+                </label>
+              ))}
             </div>
           </div>
 
@@ -331,21 +371,59 @@ export default function WerkbonApp() {
               value={formulier.omschrijving}
               onChange={e => setVeld('omschrijving', e.target.value)}
               placeholder="Beschrijf wat er gedaan is..."
-              rows={4}
+              rows={3}
             />
           </div>
 
           <div className="sectie">
-            <div className="sectie-titel">Uren</div>
-            <div className="rij-2">
-              <div className="veld">
-                <label>Aantal uren</label>
-                <input type="number" value={formulier.uren} onChange={e => setVeld('uren', e.target.value)} placeholder="0" min="0" step="0.5" />
-              </div>
-              <div className="veld">
-                <label>Uurtarief (€)</label>
-                <input type="number" value={formulier.uurtarief} onChange={e => setVeld('uurtarief', e.target.value)} placeholder="0.00" min="0" step="0.50" />
-              </div>
+            <div className="sectie-titel">Gewerkte dagen</div>
+            <div className="werkdag-labels">
+              <span className="mat-label" style={{ textAlign: 'left' }}>Datum</span>
+              <span className="mat-label" style={{ textAlign: 'left' }}>Omschrijving</span>
+              <span className="mat-label">Uren</span>
+              <span />
+            </div>
+            <div className="werkdag-lijst">
+              {werkdagen.map((w, i) => (
+                <div key={i} className="werkdag-rij">
+                  <input
+                    type="date"
+                    value={w.datum}
+                    onChange={e => updateWerkdag(i, 'datum', e.target.value)}
+                  />
+                  <input
+                    type="text"
+                    value={w.omschrijving}
+                    onChange={e => updateWerkdag(i, 'omschrijving', e.target.value)}
+                    placeholder="Wat gedaan?"
+                  />
+                  <input
+                    type="number"
+                    value={w.uren}
+                    onChange={e => updateWerkdag(i, 'uren', e.target.value)}
+                    placeholder="0"
+                    min="0"
+                    step="0.5"
+                    style={{ textAlign: 'center' }}
+                  />
+                  <button className="btn-verwijder" onClick={() => verwijderWerkdag(i)}>×</button>
+                </div>
+              ))}
+            </div>
+            <button className="btn-toevoegen" onClick={voegWerkdagToe}>+ Dag toevoegen</button>
+            {totalUrenDisplay > 0 && (
+              <div className="uren-totaal">Totaal: <strong>{totalUrenDisplay} uur</strong></div>
+            )}
+            <div className="veld" style={{ marginTop: 12 }}>
+              <label>Uurtarief (€)</label>
+              <input
+                type="number"
+                value={formulier.uurtarief}
+                onChange={e => setVeld('uurtarief', e.target.value)}
+                placeholder="0.00"
+                min="0"
+                step="0.50"
+              />
             </div>
           </div>
 
@@ -360,29 +438,9 @@ export default function WerkbonApp() {
             <div className="materialen-lijst">
               {materialen.map((m, i) => (
                 <div key={i} className="materiaal-rij">
-                  <input
-                    type="text"
-                    value={m.omschrijving}
-                    onChange={e => updateMateriaal(i, 'omschrijving', e.target.value)}
-                    placeholder="Omschrijving"
-                  />
-                  <input
-                    type="number"
-                    value={m.aantal}
-                    onChange={e => updateMateriaal(i, 'aantal', e.target.value)}
-                    placeholder="0"
-                    min="0"
-                    style={{ textAlign: 'center' }}
-                  />
-                  <input
-                    type="number"
-                    value={m.prijs}
-                    onChange={e => updateMateriaal(i, 'prijs', e.target.value)}
-                    placeholder="0,00"
-                    min="0"
-                    step="0.01"
-                    style={{ textAlign: 'right' }}
-                  />
+                  <input type="text" value={m.omschrijving} onChange={e => updateMateriaal(i, 'omschrijving', e.target.value)} placeholder="Omschrijving" />
+                  <input type="number" value={m.aantal} onChange={e => updateMateriaal(i, 'aantal', e.target.value)} placeholder="0" min="0" style={{ textAlign: 'center' }} />
+                  <input type="number" value={m.prijs} onChange={e => updateMateriaal(i, 'prijs', e.target.value)} placeholder="0,00" min="0" step="0.01" style={{ textAlign: 'right' }} />
                   <button className="btn-verwijder" onClick={() => verwijderMateriaal(i)}>×</button>
                 </div>
               ))}
@@ -392,7 +450,7 @@ export default function WerkbonApp() {
 
           <div className="sectie">
             <div className="sectie-titel">Totaal overzicht</div>
-            <div className="totaal-rij"><span>Arbeid</span><span>{euro(totalen.arbeid)}</span></div>
+            <div className="totaal-rij"><span>Arbeid ({totalUrenDisplay} uur × {euro(formulier.uurtarief || 0)})</span><span>{euro(totalen.arbeid)}</span></div>
             <div className="totaal-rij"><span>Materialen</span><span>{euro(totalen.mat_totaal)}</span></div>
             <div className="totaal-rij"><span>Totaal excl. BTW</span><span>{euro(totalen.excl_btw)}</span></div>
             <div className="totaal-rij"><span>BTW (21%)</span><span>{euro(totalen.btw)}</span></div>
@@ -401,12 +459,7 @@ export default function WerkbonApp() {
 
           <div className="sectie">
             <div className="sectie-titel">Notities (intern, niet op bon)</div>
-            <textarea
-              value={formulier.notities}
-              onChange={e => setVeld('notities', e.target.value)}
-              placeholder="Interne notities..."
-              rows={2}
-            />
+            <textarea value={formulier.notities} onChange={e => setVeld('notities', e.target.value)} placeholder="Interne notities..." rows={2} />
           </div>
 
           <div className="form-acties">
@@ -422,35 +475,22 @@ export default function WerkbonApp() {
       {view === 'detail' && huidigeBon && (
         <div className="view-content">
           <button className="form-terug" onClick={toonOverzicht}>← Terug</button>
-
           <div className="detail-acties">
-            <button className="btn btn-primair" onClick={() => window.print()}>
-              🖨️ PDF / Afdrukken
-            </button>
-            <button className="btn btn-digiboox" onClick={exporteerUBL}>
-              📤 Exporteer naar Digiboox
-            </button>
-            <button className="btn btn-licht" onClick={bewerkWerkbon}>
-              ✏️ Bewerken
-            </button>
-            <button
-              className={`btn ${huidigeBon.gefactureerd ? 'btn-groen-licht' : 'btn-licht'}`}
-              onClick={wisselStatus}
-            >
+            <button className="btn btn-primair" onClick={() => window.print()}>🖨️ PDF / Afdrukken</button>
+            <button className="btn btn-digiboox" onClick={exporteerUBL}>📤 Exporteer naar Digiboox</button>
+            <button className="btn btn-licht" onClick={bewerkWerkbon}>✏️ Bewerken</button>
+            <button className={`btn ${huidigeBon.gefactureerd ? 'btn-groen-licht' : 'btn-licht'}`} onClick={wisselStatus}>
               {huidigeBon.gefactureerd ? '✓ Gefactureerd' : 'Markeer gefactureerd'}
             </button>
-            <button className="btn btn-gevaar-licht" onClick={() => setVerwijderModal(true)}>
-              🗑️
-            </button>
+            <button className="btn btn-gevaar-licht" onClick={() => setVerwijderModal(true)}>🗑️</button>
           </div>
-
           <div className="bon-print">
             <BonAfdruk bon={huidigeBon} />
           </div>
         </div>
       )}
 
-      {/* ── VERWIJDER MODAL ── */}
+      {/* ── MODAL ── */}
       {verwijderModal && (
         <div className="modal-overlay">
           <div className="modal">
@@ -467,17 +507,23 @@ export default function WerkbonApp() {
   )
 }
 
-// ── Bon afdruk component ─────────────────────────────────────────────
+// ── Bon afdruk ───────────────────────────────────────────────────────
 function BonAfdruk({ bon }) {
-  const heeftRegels = bon.uren > 0 || (bon.materialen?.length > 0)
+  const types = bon.type ? bon.type.split(', ').filter(Boolean) : []
+  const werkdagen = bon.werkdagen || []
+  const materialen = bon.materialen || []
+  const heeftRegels = werkdagen.length > 0 || materialen.length > 0
 
   return (
     <>
       <div className="bon-kop">
         <div className="bon-kop-rij">
-          <div>
-            <div className="bon-bedrijf">Jordy – Loodgieter &amp; Dakdekker</div>
-            <div className="bon-kop-sub">{bon.type}</div>
+          <div className="bon-logo-blok">
+            <img src="/logo.png" alt="JdB logo" className="bon-logo" onError={e => e.target.style.display = 'none'} />
+            <div className="bon-logo-tekst">
+              <div className="bon-bedrijf">JdB Dak- &amp; Installatietechniek</div>
+              <div className="bon-bedrijf-sub">Dak- &amp; Installatietechniek</div>
+            </div>
           </div>
           <div className="bon-kop-nr">
             <div className="nr">{bon.nummer}</div>
@@ -492,14 +538,21 @@ function BonAfdruk({ bon }) {
       </div>
 
       <div className="bon-body">
+        {types.length > 0 && (
+          <div className="bon-sectie">
+            <div className="bon-sectie-titel">Type werkzaamheden</div>
+            <div className="bon-types">
+              {types.map(t => <span key={t} className="bon-type-badge">{t}</span>)}
+            </div>
+          </div>
+        )}
+
         <div className="bon-sectie">
           <div className="bon-sectie-titel">Klant</div>
           <div className="bon-klant-info">
             <p><strong>{bon.klant_naam || '–'}</strong></p>
             {bon.klant_adres && <p>{bon.klant_adres}</p>}
-            {(bon.klant_postcode || bon.klant_plaats) && (
-              <p>{bon.klant_postcode} {bon.klant_plaats}</p>
-            )}
+            {(bon.klant_postcode || bon.klant_plaats) && <p>{bon.klant_postcode} {bon.klant_plaats}</p>}
             {bon.klant_tel && <p>📞 {bon.klant_tel}</p>}
           </div>
         </div>
@@ -524,16 +577,16 @@ function BonAfdruk({ bon }) {
                 </tr>
               </thead>
               <tbody>
-                {bon.uren > 0 && (
-                  <tr>
-                    <td>Arbeid ({bon.uren} uur × {euro(bon.uurtarief)})</td>
-                    <td style={{ textAlign: 'center' }}>{bon.uren}</td>
-                    <td style={{ textAlign: 'right' }}>{euro(bon.uurtarief)}</td>
-                    <td style={{ textAlign: 'right' }}>{euro(bon.arbeid)}</td>
-                  </tr>
-                )}
-                {(bon.materialen || []).map((m, i) => (
+                {werkdagen.map((w, i) => (
                   <tr key={i}>
+                    <td>{datumNL(w.datum)}{w.omschrijving ? ` – ${w.omschrijving}` : ''}</td>
+                    <td style={{ textAlign: 'center' }}>{w.uren} uur</td>
+                    <td style={{ textAlign: 'right' }}>{euro(bon.uurtarief)}</td>
+                    <td style={{ textAlign: 'right' }}>{euro(w.uren * bon.uurtarief)}</td>
+                  </tr>
+                ))}
+                {materialen.map((m, i) => (
+                  <tr key={`m${i}`}>
                     <td>{m.omschrijving}</td>
                     <td style={{ textAlign: 'center' }}>{m.aantal}</td>
                     <td style={{ textAlign: 'right' }}>{euro(m.prijs)}</td>
@@ -555,7 +608,7 @@ function BonAfdruk({ bon }) {
       </div>
 
       <div className="bon-footer">
-        Werkbon gegenereerd op {new Date().toLocaleDateString('nl-NL')} &bull; Bewaar dit document voor uw administratie
+        JdB Dak- &amp; Installatietechniek &bull; Werkbon {bon.nummer} &bull; {datumNL(bon.datum)}
       </div>
     </>
   )
