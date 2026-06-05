@@ -69,12 +69,14 @@ function KlantenView({ klanten, onVervers }) {
 
   function setVeld(k, v) { setForm(f => ({ ...f, [k]: v })) }
 
-  async function adresOpzoeken() {
-    const pc = form?.postcode?.replace(/\s/g, '')
+  async function adresOpzoeken(postcodeParam, huisnummerParam) {
+    const postcode = postcodeParam !== undefined ? postcodeParam : (form?.postcode ?? '')
+    const huisnummer = huisnummerParam !== undefined ? huisnummerParam : (form?.huisnummer ?? '')
+    const pc = postcode.replace(/\s/g, '')
     if (!pc || pc.length < 6) return
     setPostcodeBezig(true)
     try {
-      const q = form.huisnummer ? `${pc} ${form.huisnummer}` : pc
+      const q = huisnummer ? `${pc} ${huisnummer}` : pc
       const res = await fetch(`https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?q=${encodeURIComponent(q)}&fl=straatnaam,woonplaatsnaam&rows=1`)
       const data = await res.json()
       const hit = data.response?.docs?.[0]
@@ -119,11 +121,11 @@ function KlantenView({ klanten, onVervers }) {
           <div className="veld">
             <label>Postcode</label>
             <div className="input-met-indicator">
-              <input type="text" value={form.postcode || ''} onChange={e => setVeld('postcode', e.target.value)} onBlur={adresOpzoeken} placeholder="1234 AB" />
+              <input type="text" value={form.postcode || ''} onChange={e => setVeld('postcode', e.target.value)} onBlur={e => adresOpzoeken(e.target.value, form.huisnummer)} placeholder="1234 AB" />
               {postcodeBezig && <span className="input-spinner">⟳</span>}
             </div>
           </div>
-          <div className="veld"><label>Huisnummer</label><input type="text" value={form.huisnummer || ''} onChange={e => setVeld('huisnummer', e.target.value)} onBlur={adresOpzoeken} placeholder="10" /></div>
+          <div className="veld"><label>Huisnummer</label><input type="text" value={form.huisnummer || ''} onChange={e => setVeld('huisnummer', e.target.value)} onBlur={e => adresOpzoeken(form.postcode, e.target.value)} placeholder="10" /></div>
         </div>
         <div className="rij-2">
           <div className="veld"><label>Straat</label><input type="text" value={form.straat || ''} onChange={e => setVeld('straat', e.target.value)} placeholder="Automatisch ingevuld" /></div>
@@ -142,7 +144,7 @@ function KlantenView({ klanten, onVervers }) {
       ) : (
         <div className="bon-lijst">
           {klanten.map(k => (
-            <div key={k.id} className="klant-kaart" onClick={() => setForm({ ...k, straat: k.adres || '', huisnummer: '' })}>
+            <div key={k.id} className="klant-kaart" onClick={() => { const m = (k.adres || '').match(/^(.*?)\s+(\d+\S*)$/); setForm({ ...k, straat: m ? m[1] : (k.adres || ''), huisnummer: m ? m[2] : '' }) }}>
               <div className="klant-info">
                 <div className="klant-naam">{k.naam}</div>
                 <div className="klant-adres">{[k.adres, k.postcode, k.plaats].filter(Boolean).join(' · ')}</div>
@@ -303,10 +305,13 @@ export default function WerkbonApp() {
     if (!huidigeBon) return
     navigeer('formulier')
     setBewerkModus(true)
+    const adresM = (huidigeBon.klant_adres || '').match(/^(.*?)\s+(\d+\S*)$/)
     setFormulier({
       nummer: huidigeBon.nummer || '', datum: huidigeBon.datum || vandaag(),
-      klant_naam: huidigeBon.klant_naam || '', klant_straat: huidigeBon.klant_adres || '',
-      klant_huisnummer: '', klant_postcode: huidigeBon.klant_postcode || '',
+      klant_naam: huidigeBon.klant_naam || '',
+      klant_straat: adresM ? adresM[1] : (huidigeBon.klant_adres || ''),
+      klant_huisnummer: adresM ? adresM[2] : '',
+      klant_postcode: huidigeBon.klant_postcode || '',
       klant_plaats: huidigeBon.klant_plaats || '', klant_tel: huidigeBon.klant_tel || '',
       omschrijving: huidigeBon.omschrijving || '', uurtarief: huidigeBon.uurtarief || '', notities: huidigeBon.notities || '',
     })
@@ -321,9 +326,12 @@ export default function WerkbonApp() {
   function toggleType(type) { setGeselecteerdeTypes(t => t.includes(type) ? t.filter(x => x !== type) : [...t, type]) }
 
   function klantSelecteren(klant) {
+    const m = (klant.adres || '').match(/^(.*?)\s+(\d+\S*)$/)
     setFormulier(f => ({
-      ...f, klant_naam: klant.naam, klant_straat: klant.adres || '',
-      klant_huisnummer: '', klant_postcode: klant.postcode || '',
+      ...f, klant_naam: klant.naam,
+      klant_straat: m ? m[1] : (klant.adres || ''),
+      klant_huisnummer: m ? m[2] : '',
+      klant_postcode: klant.postcode || '',
       klant_plaats: klant.plaats || '', klant_tel: klant.telefoon || '',
     }))
   }
