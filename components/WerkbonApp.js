@@ -450,9 +450,12 @@ export default function WerkbonApp() {
   return (
     <>
       <header>
-        <div>
-          <h1>{headerTitel}{syncActief && <span className="sync-dot" />}</h1>
-          {view === 'detail' && huidigeBon?.klant_naam && <span>{huidigeBon.klant_naam}</span>}
+        <div className="header-links">
+          <img src="/logo.png" alt="JdB" className="header-logo" onError={e => e.target.style.display = 'none'} />
+          <div>
+            <h1>{headerTitel}{syncActief && <span className="sync-dot" />}</h1>
+            {view === 'detail' && huidigeBon?.klant_naam && <span>{huidigeBon.klant_naam}</span>}
+          </div>
         </div>
         <button className={`btn-ms-header ${msIngelogd ? 'ingelogd' : ''}`} onClick={msIngelogd ? handleMsLogout : handleMsLogin} title={msIngelogd ? 'Uitloggen bij Microsoft' : 'Inloggen voor foto-upload'}>
           {msIngelogd ? '☁️ MS ✓' : '☁️ MS'}

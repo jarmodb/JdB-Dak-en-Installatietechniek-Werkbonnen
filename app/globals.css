@@ -40,6 +40,8 @@ header {
 }
 header h1 { font-size: 18px; font-weight: 700; color: white; }
 header span { font-size: 13px; color: var(--goud); }
+.header-links { display: flex; align-items: center; gap: 10px; }
+.header-logo { height: 36px; width: auto; object-fit: contain; flex-shrink: 0; }
 
 /* === LAYOUT === */
 .view-content { padding: 16px; }
