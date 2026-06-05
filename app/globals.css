@@ -569,6 +569,83 @@ tr:last-child td { border-bottom: none; }
 
 .btn-toevoegen.disabled { opacity: .6; cursor: not-allowed; }
 
+/* === BOTTOM NAV === */
+.bottom-nav {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: var(--zwart);
+  border-top: 2px solid var(--goud);
+  display: flex;
+  z-index: 150;
+}
+.bottom-nav button {
+  flex: 1;
+  background: none;
+  border: none;
+  color: #888;
+  padding: 10px 4px 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  transition: color .15s;
+}
+.bottom-nav button.actief { color: var(--goud); }
+.bottom-nav button:hover { color: #bbb; }
+.nav-icon { font-size: 20px; line-height: 1; }
+.nav-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; }
+.with-bottom-nav { padding-bottom: 80px !important; }
+.fab-boven-nav { bottom: 84px !important; }
+
+/* === AUTOCOMPLETE === */
+.autocomplete { position: relative; }
+.autocomplete-dropdown {
+  position: absolute;
+  top: 100%; left: 0; right: 0;
+  background: white;
+  border: 1.5px solid var(--goud);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  box-shadow: var(--schaduw-lg);
+  z-index: 200;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.autocomplete-optie {
+  padding: 10px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  border-bottom: 1px solid var(--grens);
+}
+.autocomplete-optie:last-child { border-bottom: none; }
+.autocomplete-optie:hover { background: var(--goud-licht); }
+.autocomplete-optie-sub { font-size: 11px; color: var(--grijs); margin-top: 2px; }
+
+/* === KLANTEN / PRODUCTEN === */
+.klant-kaart, .product-kaart {
+  background: white;
+  border-radius: 10px;
+  box-shadow: var(--schaduw);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: box-shadow .15s, border-color .15s;
+  border-left: 4px solid transparent;
+}
+.klant-kaart:hover, .product-kaart:hover { box-shadow: var(--schaduw-lg); border-left-color: var(--goud); }
+.klant-info, .product-info { flex: 1; min-width: 0; }
+.klant-naam, .product-naam { font-weight: 600; font-size: 15px; }
+.klant-adres, .product-meta { font-size: 12px; color: var(--grijs); margin-top: 2px; }
+.product-prijs { font-weight: 700; white-space: nowrap; color: var(--tekst); }
+
+/* Eenheid in materialen */
+.mat-labels-5 { display: grid; grid-template-columns: 1fr 55px 65px 80px 32px; gap: 6px; margin-bottom: 4px; }
+.materiaal-rij-5 { display: grid; grid-template-columns: 1fr 55px 65px 80px 32px; gap: 6px; align-items: center; }
+.materiaal-rij-5 input { padding: 8px 6px; }
+
 /* === PRINT === */
 @media print {
   body { background: white; }
