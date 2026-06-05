@@ -683,11 +683,55 @@ tr:last-child td { border-bottom: none; }
 }
 
 /* === PLANNING === */
-.planning-week-nav {
+/* Toolbar: view switcher + medewerkers knop */
+.planning-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 12px 0;
+  gap: 8px;
+}
+.planning-view-switcher {
+  display: flex;
+  background: var(--zwart);
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #333;
+}
+.planning-view-tab {
+  background: none;
+  border: none;
+  color: #888;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.planning-view-tab.actief {
+  background: var(--goud);
+  color: var(--zwart);
+}
+.planning-view-tab:hover:not(.actief) { color: #ccc; }
+
+.planning-med-btn {
+  background: none;
+  border: 1.5px solid var(--grens);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 16px;
+  cursor: pointer;
+  color: var(--grijs);
+  transition: border-color .15s, color .15s;
+}
+.planning-med-btn:hover { border-color: var(--goud); color: var(--goud); }
+
+/* Periode navigatie */
+.planning-periode-nav {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 16px 8px;
+  padding: 8px 12px;
 }
 .planning-nav-btn {
   background: var(--zwart);
@@ -701,26 +745,118 @@ tr:last-child td { border-bottom: none; }
   flex-shrink: 0;
 }
 .planning-nav-btn:hover { background: #2d2d2d; }
-.planning-week-label {
+.planning-periode-label {
   flex: 1;
   font-weight: 700;
   font-size: 15px;
   text-align: center;
   color: var(--tekst);
 }
-.planning-links-btn {
-  background: none;
-  border: 1.5px solid var(--grens);
+.planning-vandaag-btn {
+  background: var(--goud-licht);
+  color: var(--goud-donker);
+  border: 1px solid var(--goud);
   border-radius: 6px;
-  width: 34px; height: 34px;
-  font-size: 16px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 700;
   cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-  color: var(--grijs);
+  white-space: nowrap;
 }
-.planning-links-btn:hover { border-color: var(--goud); color: var(--goud); }
+.planning-vandaag-btn:hover { background: #eddfa0; }
 
+/* Medewerker filter */
+.planning-filter {
+  display: flex;
+  gap: 6px;
+  padding: 0 12px 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.planning-filter::-webkit-scrollbar { display: none; }
+.planning-filter-btn {
+  background: white;
+  border: 1.5px solid var(--grens);
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  color: var(--grijs);
+  transition: all .15s;
+}
+.planning-filter-btn.actief {
+  background: var(--goud);
+  border-color: var(--goud);
+  color: var(--zwart);
+}
+.planning-filter-btn:hover:not(.actief) { border-color: #aaa; color: var(--tekst); }
+
+/* === MAAND KALENDER === */
+.maand-kalender { padding: 0 12px 12px; }
+.maand-dag-headers {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 4px;
+}
+.maand-dag-header {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--grijs);
+  padding: 4px 0;
+  text-transform: uppercase;
+}
+.maand-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+.maand-cel {
+  background: white;
+  border-radius: 6px;
+  padding: 5px 4px;
+  min-height: 52px;
+  cursor: pointer;
+  transition: box-shadow .1s;
+  border: 1.5px solid transparent;
+}
+.maand-cel:hover { box-shadow: var(--schaduw); border-color: var(--goud); }
+.maand-cel-grijs { background: var(--grijs-licht); }
+.maand-cel-grijs .maand-cel-nr { color: #ccc; }
+.maand-cel-vandaag {
+  border-color: var(--goud) !important;
+  background: var(--goud-licht);
+}
+.maand-cel-vandaag .maand-cel-nr { color: var(--goud-donker); font-weight: 800; }
+.maand-cel-nr {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tekst);
+  text-align: center;
+  margin-bottom: 3px;
+}
+.maand-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  justify-content: center;
+}
+.afspraak-dot {
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+}
+.afspraak-dot-meer {
+  font-size: 9px;
+  color: var(--grijs);
+  font-weight: 700;
+  line-height: 7px;
+}
+
+/* === WEEK LIJST === */
 .planning-week-lijst {
   display: flex;
   flex-direction: column;
@@ -757,15 +893,10 @@ tr:last-child td { border-bottom: none; }
   font-style: italic;
 }
 
-.planning-dag-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px 8px;
-}
-.planning-dag-titel {
-  font-weight: 700;
-  font-size: 16px;
+.planning-dag-teller {
+  font-size: 11px;
+  color: var(--goud);
+  font-weight: 600;
 }
 .planning-dag-lijst {
   display: flex;
@@ -803,32 +934,33 @@ tr:last-child td { border-bottom: none; }
   white-space: nowrap;
   font-weight: 600;
 }
-.afspraak-klant, .afspraak-adres, .afspraak-omschrijving, .afspraak-bon {
+.afspraak-meta {
   font-size: 12px;
   color: var(--grijs);
-  margin-top: 2px;
+  margin-top: 3px;
   display: flex;
   align-items: center;
   gap: 4px;
 }
-.afspraak-omschrijving { color: var(--tekst); font-size: 13px; margin-top: 4px; }
-.afspraak-bon { color: var(--goud-donker); font-weight: 600; }
-
-/* Inline FAB knop (+ bij dag label) */
-.fab-inline {
-  background: var(--goud);
-  color: var(--zwart);
-  border: none;
+.afspraak-med-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
   border-radius: 50%;
-  width: 26px; height: 26px;
-  font-size: 18px;
-  font-weight: 700;
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  line-height: 1;
   flex-shrink: 0;
 }
-.fab-inline:hover { background: var(--goud-donker); color: white; }
+.afspraak-omschrijving { font-size: 13px; color: var(--tekst); margin-top: 4px; }
+.afspraak-bon { font-size: 12px; color: var(--goud-donker); font-weight: 600; margin-top: 3px; }
+.afspraak-iedereen-badge {
+  display: inline-block;
+  font-size: 10px;
+  background: var(--goud-licht);
+  color: var(--goud-donker);
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin-top: 4px;
+  font-weight: 700;
+}
+
 
 /* Google Maps mini knop */
 .maps-knop-mini {

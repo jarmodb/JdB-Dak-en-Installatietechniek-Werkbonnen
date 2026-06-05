@@ -8,11 +8,12 @@ import { PlanningReadOnly } from '@/components/PlanningView'
 export default function PlanningDeelPage() {
   const { token } = useParams()
   const [status, setStatus] = useState('laden') // laden | geldig | ongeldig
+  const [medewerkerId, setMedewerkerId] = useState(null)
+  const [medewerkerNaam, setMedewerkerNaam] = useState('')
   const [afspraken, setAfspraken] = useState([])
 
   useEffect(() => {
     async function init() {
-      // Controleer of de token geldig is
       const { data: link } = await supabase
         .from('planning_links')
         .select('id, naam')
@@ -21,7 +22,9 @@ export default function PlanningDeelPage() {
 
       if (!link) { setStatus('ongeldig'); return }
 
-      // Laad afspraken
+      setMedewerkerId(link.id)
+      setMedewerkerNaam(link.naam)
+
       const { data } = await supabase
         .from('planning')
         .select('*')
@@ -56,12 +59,12 @@ export default function PlanningDeelPage() {
     <>
       <header>
         <div>
-          <h1>JdB Planning</h1>
-          <span>Alleen lezen</span>
+          <h1>Planning</h1>
+          <span>{medewerkerNaam} · Alleen lezen</span>
         </div>
         <img src="/logo.png" alt="JdB" style={{ height: 36, objectFit: 'contain' }} onError={e => e.target.style.display = 'none'} />
       </header>
-      <PlanningReadOnly afspraken={afspraken} />
+      <PlanningReadOnly medewerkerId={medewerkerId} initialAfspraken={afspraken} />
     </>
   )
 }
