@@ -65,8 +65,25 @@ function Autocomplete({ waarde, opties, onChange, onSelecteer, placeholder, rend
 function KlantenView({ klanten, onVervers }) {
   const [form, setForm] = useState(null)
   const [bezig, setBezig] = useState(false)
+  const [postcodeBezig, setPostcodeBezig] = useState(false)
 
   function setVeld(k, v) { setForm(f => ({ ...f, [k]: v })) }
+
+  async function adresOpzoeken() {
+    const pc = form?.postcode?.replace(/\s/g, '')
+    if (!pc || pc.length < 6) return
+    setPostcodeBezig(true)
+    try {
+      const res = await fetch(`https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?q=${encodeURIComponent(pc)}&fl=straatnaam,woonplaatsnaam&rows=1`)
+      const data = await res.json()
+      const hit = data.response?.docs?.[0]
+      if (hit) {
+        if (hit.straatnaam && !form.adres) setVeld('adres', hit.straatnaam)
+        if (hit.woonplaatsnaam && !form.plaats) setVeld('plaats', hit.woonplaatsnaam)
+      }
+    } catch { }
+    setPostcodeBezig(false)
+  }
 
   async function opslaan() {
     if (!form.naam?.trim()) { alert('Naam is verplicht'); return }
@@ -98,8 +115,14 @@ function KlantenView({ klanten, onVervers }) {
         <div className="veld"><label>Naam *</label><input type="text" value={form.naam || ''} onChange={e => setVeld('naam', e.target.value)} placeholder="Voornaam Achternaam" /></div>
         <div className="veld"><label>Adres</label><input type="text" value={form.adres || ''} onChange={e => setVeld('adres', e.target.value)} placeholder="Straat en huisnummer" /></div>
         <div className="rij-2">
-          <div className="veld"><label>Postcode</label><input type="text" value={form.postcode || ''} onChange={e => setVeld('postcode', e.target.value)} placeholder="1234 AB" /></div>
-          <div className="veld"><label>Plaats</label><input type="text" value={form.plaats || ''} onChange={e => setVeld('plaats', e.target.value)} placeholder="Amsterdam" /></div>
+          <div className="veld">
+            <label>Postcode</label>
+            <div className="input-met-indicator">
+              <input type="text" value={form.postcode || ''} onChange={e => setVeld('postcode', e.target.value)} onBlur={adresOpzoeken} placeholder="1234 AB" />
+              {postcodeBezig && <span className="input-spinner">⟳</span>}
+            </div>
+          </div>
+          <div className="veld"><label>Plaats</label><input type="text" value={form.plaats || ''} onChange={e => setVeld('plaats', e.target.value)} placeholder="Automatisch ingevuld" /></div>
         </div>
         <div className="veld"><label>Telefoon</label><input type="tel" value={form.telefoon || ''} onChange={e => setVeld('telefoon', e.target.value)} placeholder="06-12345678" /></div>
       </div>
