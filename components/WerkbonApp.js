@@ -20,8 +20,12 @@ function vandaag() {
 }
 function genNummer(werkbonnen) {
   const jaar = new Date().getFullYear()
-  const dit_jaar = werkbonnen.filter(b => b.nummer?.startsWith('WB-' + jaar))
-  return `WB-${jaar}-${String(dit_jaar.length + 1).padStart(3, '0')}`
+  const prefix = `WB-${jaar}-`
+  const nummers = werkbonnen
+    .filter(b => b.nummer?.startsWith(prefix))
+    .map(b => parseInt(b.nummer.replace(prefix, '')) || 0)
+  const hoogste = nummers.length > 0 ? Math.max(...nummers) : 0
+  return `${prefix}${String(hoogste + 1).padStart(3, '0')}`
 }
 function bereken(werkdagen, uurtarief, materialen) {
   const totalUren = werkdagen.reduce((s, w) => s + (parseFloat(w.uren) || 0), 0)
@@ -357,7 +361,7 @@ export default function WerkbonApp() {
             <div className="rij-2">
               <div className="veld">
                 <label>Bonnummer</label>
-                <input type="text" value={formulier.nummer} readOnly className="readonly" />
+                <input type="text" value={formulier.nummer} onChange={e => setVeld('nummer', e.target.value)} placeholder="WB-2026-001" />
               </div>
               <div className="veld">
                 <label>Datum</label>
