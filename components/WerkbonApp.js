@@ -617,6 +617,16 @@ function BonAfdruk({ bon }) {
             {bon.klant_adres && <p>{bon.klant_adres}</p>}
             {(bon.klant_postcode || bon.klant_plaats) && <p>{bon.klant_postcode} {bon.klant_plaats}</p>}
             {bon.klant_tel && <p>📞 {bon.klant_tel}</p>}
+            {(bon.klant_adres || bon.klant_plaats) && (
+              <a
+                href={`https://maps.google.com/?q=${encodeURIComponent([bon.klant_adres, bon.klant_postcode, bon.klant_plaats].filter(Boolean).join(' '))}`}
+                target="_blank"
+                rel="noreferrer"
+                className="maps-knop"
+              >
+                🗺️ Navigeer
+              </a>
+            )}
           </div>
         </div>
 
