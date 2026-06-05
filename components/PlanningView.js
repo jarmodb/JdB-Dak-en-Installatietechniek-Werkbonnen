@@ -315,11 +315,14 @@ function MaandView({ refDatum, afspraken, onDagKlik }) {
               className={`maand-cel${!huidigemnd ? ' maand-cel-grijs' : ''}${today ? ' maand-cel-vandaag' : ''}`}
               onClick={() => onDagKlik(ds(dag))}>
               <div className="maand-cel-nr">{dag.getDate()}</div>
-              <div className="maand-dots">
-                {aps.slice(0, 3).map(a => (
-                  <span key={a.id} className="afspraak-dot" style={{ background: a.kleur || '#C9A227' }} title={a.titel} />
+              <div className="maand-afspraken">
+                {aps.slice(0, 2).map(a => (
+                  <div key={a.id} className="maand-afspraak-chip" style={{ background: (a.kleur || '#C9A227') + '22', borderLeftColor: a.kleur || '#C9A227' }}>
+                    {tijdStr(a.tijdstip_van) && <span className="maand-chip-tijd">{tijdStr(a.tijdstip_van)}</span>}
+                    <span className="maand-chip-titel">{a.titel}</span>
+                  </div>
                 ))}
-                {aps.length > 3 && <span className="afspraak-dot-meer">+{aps.length - 3}</span>}
+                {aps.length > 2 && <div className="maand-meer">+{aps.length - 2} meer</div>}
               </div>
             </div>
           )

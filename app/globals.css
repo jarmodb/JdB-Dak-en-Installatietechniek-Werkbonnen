@@ -818,10 +818,11 @@ tr:last-child td { border-bottom: none; }
   background: white;
   border-radius: 6px;
   padding: 5px 4px;
-  min-height: 52px;
+  min-height: 64px;
   cursor: pointer;
   transition: box-shadow .1s;
   border: 1.5px solid transparent;
+  overflow: hidden;
 }
 .maand-cel:hover { box-shadow: var(--schaduw); border-color: var(--goud); }
 .maand-cel-grijs { background: var(--grijs-licht); }
@@ -838,22 +839,41 @@ tr:last-child td { border-bottom: none; }
   text-align: center;
   margin-bottom: 3px;
 }
-.maand-dots {
+.maand-afspraken {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 2px;
-  justify-content: center;
+  margin-top: 2px;
 }
-.afspraak-dot {
-  display: inline-block;
-  width: 7px; height: 7px;
-  border-radius: 50%;
+.maand-afspraak-chip {
+  border-left: 3px solid;
+  border-radius: 2px;
+  padding: 1px 3px;
+  font-size: 10px;
+  line-height: 1.3;
+  overflow: hidden;
+  display: flex;
+  gap: 3px;
+  align-items: baseline;
 }
-.afspraak-dot-meer {
-  font-size: 9px;
-  color: var(--grijs);
+.maand-chip-tijd {
   font-weight: 700;
-  line-height: 7px;
+  flex-shrink: 0;
+  color: #555;
+  font-size: 9px;
+}
+.maand-chip-titel {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--tekst);
+  font-weight: 500;
+}
+.maand-meer {
+  font-size: 10px;
+  color: var(--grijs);
+  font-weight: 600;
+  padding-left: 2px;
 }
 
 /* === WEEK LIJST === */
