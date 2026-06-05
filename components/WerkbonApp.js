@@ -74,12 +74,13 @@ function KlantenView({ klanten, onVervers }) {
     if (!pc || pc.length < 6) return
     setPostcodeBezig(true)
     try {
-      const res = await fetch(`https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?q=${encodeURIComponent(pc)}&fl=straatnaam,woonplaatsnaam&rows=1`)
+      const q = form.huisnummer ? `${pc} ${form.huisnummer}` : pc
+      const res = await fetch(`https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?q=${encodeURIComponent(q)}&fl=straatnaam,woonplaatsnaam&rows=1`)
       const data = await res.json()
       const hit = data.response?.docs?.[0]
       if (hit) {
-        if (hit.straatnaam && !form.adres) setVeld('adres', hit.straatnaam)
-        if (hit.woonplaatsnaam && !form.plaats) setVeld('plaats', hit.woonplaatsnaam)
+        if (hit.straatnaam) setVeld('straat', hit.straatnaam)
+        if (hit.woonplaatsnaam) setVeld('plaats', hit.woonplaatsnaam)
       }
     } catch { }
     setPostcodeBezig(false)
@@ -88,7 +89,8 @@ function KlantenView({ klanten, onVervers }) {
   async function opslaan() {
     if (!form.naam?.trim()) { alert('Naam is verplicht'); return }
     setBezig(true)
-    const { id, aangemaakt, ...data } = form
+    const { id, aangemaakt, straat, huisnummer, ...rest } = form
+    const data = { ...rest, adres: [straat, huisnummer].filter(Boolean).join(' ') }
     if (form.id) {
       await supabase.from('klanten').update(data).eq('id', form.id)
     } else {
@@ -113,7 +115,6 @@ function KlantenView({ klanten, onVervers }) {
       <div className="sectie">
         <div className="sectie-titel">{form.id ? 'Klant bewerken' : 'Nieuwe klant'}</div>
         <div className="veld"><label>Naam *</label><input type="text" value={form.naam || ''} onChange={e => setVeld('naam', e.target.value)} placeholder="Voornaam Achternaam" /></div>
-        <div className="veld"><label>Adres</label><input type="text" value={form.adres || ''} onChange={e => setVeld('adres', e.target.value)} placeholder="Straat en huisnummer" /></div>
         <div className="rij-2">
           <div className="veld">
             <label>Postcode</label>
@@ -122,6 +123,10 @@ function KlantenView({ klanten, onVervers }) {
               {postcodeBezig && <span className="input-spinner">⟳</span>}
             </div>
           </div>
+          <div className="veld"><label>Huisnummer</label><input type="text" value={form.huisnummer || ''} onChange={e => setVeld('huisnummer', e.target.value)} onBlur={adresOpzoeken} placeholder="10" /></div>
+        </div>
+        <div className="rij-2">
+          <div className="veld"><label>Straat</label><input type="text" value={form.straat || ''} onChange={e => setVeld('straat', e.target.value)} placeholder="Automatisch ingevuld" /></div>
           <div className="veld"><label>Plaats</label><input type="text" value={form.plaats || ''} onChange={e => setVeld('plaats', e.target.value)} placeholder="Automatisch ingevuld" /></div>
         </div>
         <div className="veld"><label>Telefoon</label><input type="tel" value={form.telefoon || ''} onChange={e => setVeld('telefoon', e.target.value)} placeholder="06-12345678" /></div>
@@ -137,7 +142,7 @@ function KlantenView({ klanten, onVervers }) {
       ) : (
         <div className="bon-lijst">
           {klanten.map(k => (
-            <div key={k.id} className="klant-kaart" onClick={() => setForm(k)}>
+            <div key={k.id} className="klant-kaart" onClick={() => setForm({ ...k, straat: k.adres || '', huisnummer: '' })}>
               <div className="klant-info">
                 <div className="klant-naam">{k.naam}</div>
                 <div className="klant-adres">{[k.adres, k.postcode, k.plaats].filter(Boolean).join(' · ')}</div>
@@ -147,7 +152,7 @@ function KlantenView({ klanten, onVervers }) {
           ))}
         </div>
       )}
-      <button className="fab fab-boven-nav" onClick={() => setForm({ naam: '', adres: '', postcode: '', plaats: '', telefoon: '' })}>+</button>
+      <button className="fab fab-boven-nav" onClick={() => setForm({ naam: '', straat: '', huisnummer: '', postcode: '', plaats: '', telefoon: '' })}>+</button>
     </div>
   )
 }
