@@ -89,7 +89,10 @@ function KlantenView({ klanten, onVervers }) {
 
   if (form !== null) return (
     <div className="view-content form-content with-bottom-nav">
-      <button className="form-terug" onClick={() => setForm(null)}>← Terug</button>
+      <div className="top-acties">
+        <button className="form-terug" onClick={() => setForm(null)}>← Terug</button>
+        <button className="btn btn-primair" onClick={opslaan} disabled={bezig}>{bezig ? 'Opslaan...' : '✓ Opslaan'}</button>
+      </div>
       <div className="sectie">
         <div className="sectie-titel">{form.id ? 'Klant bewerken' : 'Nieuwe klant'}</div>
         <div className="veld"><label>Naam *</label><input type="text" value={form.naam || ''} onChange={e => setVeld('naam', e.target.value)} placeholder="Voornaam Achternaam" /></div>
@@ -99,10 +102,6 @@ function KlantenView({ klanten, onVervers }) {
           <div className="veld"><label>Plaats</label><input type="text" value={form.plaats || ''} onChange={e => setVeld('plaats', e.target.value)} placeholder="Amsterdam" /></div>
         </div>
         <div className="veld"><label>Telefoon</label><input type="tel" value={form.telefoon || ''} onChange={e => setVeld('telefoon', e.target.value)} placeholder="06-12345678" /></div>
-      </div>
-      <div className="form-acties">
-        <button className="btn btn-licht" onClick={() => setForm(null)}>Annuleer</button>
-        <button className="btn btn-primair" onClick={opslaan} disabled={bezig}>{bezig ? 'Opslaan...' : '✓ Opslaan'}</button>
       </div>
     </div>
   )
@@ -158,7 +157,10 @@ function ProductenView({ producten, onVervers }) {
 
   if (form !== null) return (
     <div className="view-content form-content with-bottom-nav">
-      <button className="form-terug" onClick={() => setForm(null)}>← Terug</button>
+      <div className="top-acties">
+        <button className="form-terug" onClick={() => setForm(null)}>← Terug</button>
+        <button className="btn btn-primair" onClick={opslaan} disabled={bezig}>{bezig ? 'Opslaan...' : '✓ Opslaan'}</button>
+      </div>
       <div className="sectie">
         <div className="sectie-titel">{form.id ? 'Product bewerken' : 'Nieuw product'}</div>
         <div className="veld"><label>Naam *</label><input type="text" value={form.naam || ''} onChange={e => setVeld('naam', e.target.value)} placeholder="Bijv. Koperen knie 90°" /></div>
@@ -171,10 +173,6 @@ function ProductenView({ producten, onVervers }) {
           </div>
           <div className="veld"><label>Prijs (€)</label><input type="number" value={form.prijs || ''} onChange={e => setVeld('prijs', e.target.value)} placeholder="0.00" min="0" step="0.01" /></div>
         </div>
-      </div>
-      <div className="form-acties">
-        <button className="btn btn-licht" onClick={() => setForm(null)}>Annuleer</button>
-        <button className="btn btn-primair" onClick={opslaan} disabled={bezig}>{bezig ? 'Opslaan...' : '✓ Opslaan'}</button>
       </div>
     </div>
   )

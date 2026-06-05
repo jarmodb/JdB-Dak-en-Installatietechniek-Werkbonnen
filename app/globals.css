@@ -598,6 +598,15 @@ tr:last-child td { border-bottom: none; }
 .with-bottom-nav { padding-bottom: 80px !important; }
 .fab-boven-nav { bottom: 84px !important; }
 
+/* === TOP ACTIES (klanten/producten form) === */
+.top-acties {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.top-acties .form-terug { margin-bottom: 0; }
+
 /* === AUTOCOMPLETE === */
 .autocomplete { position: relative; }
 .autocomplete-dropdown {
