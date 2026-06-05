@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { genereerUBL } from '@/lib/ubl'
 import { msLogin, msLogout, msGetAccount, uploadFotoNaarOneDrive } from '@/lib/onedrive'
+import PlanningView from '@/components/PlanningView'
 
 const WERK_TYPES = ['Gas', 'Water', 'Verwarming', 'Sanitair', 'Riolering', 'Dakbedekking', 'Zinkwerken', 'Graafwerkzaamheden']
 const EENHEDEN = ['stuk', 'm²', 'meter', 'liter', 'kg', 'uur', 'set', 'rol', 'doos', 'pak']
@@ -443,8 +444,8 @@ export default function WerkbonApp() {
   }
 
   const totalen = bereken(werkdagen, formulier.uurtarief, materialen)
-  const toonNav = ['overzicht', 'klanten', 'producten'].includes(view)
-  const headerTitel = view === 'overzicht' ? 'JdB Werkbonnen' : view === 'klanten' ? 'Klanten' : view === 'producten' ? 'Producten' : view === 'formulier' ? (bewerkModus ? 'Bewerken' : 'Nieuwe werkbon') : huidigeBon?.nummer || ''
+  const toonNav = ['overzicht', 'klanten', 'producten', 'planning'].includes(view)
+  const headerTitel = view === 'overzicht' ? 'JdB Werkbonnen' : view === 'klanten' ? 'Klanten' : view === 'producten' ? 'Producten' : view === 'planning' ? 'Planning' : view === 'formulier' ? (bewerkModus ? 'Bewerken' : 'Nieuwe werkbon') : huidigeBon?.nummer || ''
 
   return (
     <>
@@ -491,6 +492,9 @@ export default function WerkbonApp() {
 
       {/* ── PRODUCTEN ── */}
       {view === 'producten' && <ProductenView producten={producten} onVervers={laadProducten} />}
+
+      {/* ── PLANNING ── */}
+      {view === 'planning' && <PlanningView klanten={klanten} werkbonnen={werkbonnen} />}
 
       {/* ── FORMULIER ── */}
       {view === 'formulier' && (
@@ -692,6 +696,9 @@ export default function WerkbonApp() {
           </button>
           <button className={view === 'producten' ? 'actief' : ''} onClick={() => navigeer('producten')}>
             <span className="nav-icon">📦</span><span className="nav-label">Producten</span>
+          </button>
+          <button className={view === 'planning' ? 'actief' : ''} onClick={() => navigeer('planning')}>
+            <span className="nav-icon">📅</span><span className="nav-label">Planning</span>
           </button>
         </nav>
       )}
