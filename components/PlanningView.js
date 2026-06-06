@@ -287,6 +287,15 @@ function MedewerkersView({ medewerkers, onVervers, onTerug }) {
     onVervers()
   }
 
+  async function stelPinIn(m) {
+    const huidig = m.pin ? 'Huidige PIN is ingesteld. ' : ''
+    const pin = window.prompt(`${huidig}Nieuwe PIN voor ${m.naam} (4 cijfers):`)
+    if (pin === null) return
+    if (!/^\d{4}$/.test(pin)) { alert('PIN moet precies 4 cijfers zijn.'); return }
+    await supabase.from('planning_links').update({ pin }).eq('id', m.id)
+    onVervers()
+  }
+
   function kopieer(token) {
     const url = `${window.location.origin}/planning/${token}`
     navigator.clipboard.writeText(url).then(() => alert('Persoonlijke link gekopieerd!\n\n' + url))
@@ -301,23 +310,27 @@ function MedewerkersView({ medewerkers, onVervers, onTerug }) {
       <div className="sectie">
         <div className="sectie-titel">Medewerkers</div>
         <p style={{ color: '#888', fontSize: 13, marginBottom: 12 }}>
-          Elke medewerker krijgt een persoonlijke link. Via die link zien ze alleen hun eigen afspraken (+ afspraken voor iedereen).
+          Elke medewerker krijgt een persoonlijke link met PIN. Na inloggen kunnen ze hun planning, taken en werkbonnen beheren.
         </p>
         {medewerkers.length === 0 ? (
           <div className="leeg"><p>Nog geen medewerkers.<br />Klik op <strong>+ Medewerker</strong> om te beginnen.</p></div>
         ) : (
           <div className="bon-lijst">
             {medewerkers.map(m => (
-              <div key={m.id} className="klant-kaart" style={{ gap: 10 }}>
-                <div style={{ width: 14, height: 14, borderRadius: '50%', background: m.kleur || '#C9A227', flexShrink: 0 }} />
-                <div className="klant-info">
+              <div key={m.id} className="klant-kaart" style={{ gap: 10, flexWrap: 'wrap' }}>
+                <div style={{ width: 14, height: 14, borderRadius: '50%', background: m.kleur || '#C9A227', flexShrink: 0, marginTop: 2 }} />
+                <div className="klant-info" style={{ flex: 1, minWidth: 0 }}>
                   <div className="klant-naam">{m.naam}</div>
                   <div className="klant-adres" style={{ fontFamily: 'monospace', fontSize: 11, wordBreak: 'break-all' }}>
                     {typeof window !== 'undefined' ? `${window.location.origin}/planning/${m.token}` : `/planning/${m.token}`}
                   </div>
+                  <div style={{ marginTop: 4, fontSize: 12, color: m.pin ? '#389E0D' : '#aaa' }}>
+                    {m.pin ? '🔒 PIN ingesteld' : '⚠️ Nog geen PIN'}
+                  </div>
                 </div>
                 <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                  <button className="btn btn-licht" style={{ padding: '4px 10px', fontSize: 13 }} onClick={() => kopieer(m.token)}>📋</button>
+                  <button className="btn btn-licht" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => stelPinIn(m)} title="PIN instellen">🔑 PIN</button>
+                  <button className="btn btn-licht" style={{ padding: '4px 10px', fontSize: 13 }} onClick={() => kopieer(m.token)} title="Link kopiëren">📋</button>
                   <button className="btn-verwijder" onClick={() => verwijder(m.id)}>×</button>
                 </div>
               </div>

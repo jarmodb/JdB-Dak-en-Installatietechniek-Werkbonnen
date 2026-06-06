@@ -4,6 +4,20 @@ Alle wijzigingen per versie worden hier bijgehouden.
 
 ---
 
+## v1.4 – 6 juni 2026
+
+### Nieuw
+- **Medewerker login (PIN)**: elke medewerker logt in via hun persoonlijke link met een 4-cijferige PIN.
+- **Werkbonnen voor medewerkers**: na inloggen kunnen medewerkers werkbonnen aanmaken en bewerken. Ze zien alleen hun eigen werkbonnen.
+- **Navigatie voor medewerkers**: tabbladen Planning, Taken en Werkbonnen in de persoonlijke link.
+- **Teller op Taken-tab**: rood bolletje toont het aantal openstaande taken.
+
+### Verbeterd
+- Medewerkersbeheer toont of er een PIN is ingesteld.
+- Medewerkers zonder PIN krijgen direct toegang (backwards compat.).
+
+---
+
 ## v1.3 – 6 juni 2026
 
 ### Nieuw

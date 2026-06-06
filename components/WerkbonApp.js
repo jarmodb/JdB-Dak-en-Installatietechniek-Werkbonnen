@@ -9,8 +9,16 @@ import TodoView from '@/components/TodoView'
 
 const CHANGELOG = [
   {
+    versie: 'v1.4', datum: '6 juni 2026', items: [
+      { type: 'nieuw', tekst: 'Medewerker login via PIN op persoonlijke link' },
+      { type: 'nieuw', tekst: 'Medewerkers kunnen eigen werkbonnen aanmaken en bewerken' },
+      { type: 'nieuw', tekst: 'Navigatie met Planning, Taken en Werkbonnen in personeelslink' },
+      { type: 'nieuw', tekst: 'Rood teller-bolletje op Taken-tab bij openstaande taken' },
+    ]
+  },
+  {
     versie: 'v1.3', datum: '6 juni 2026', items: [
-      { type: 'nieuw', tekst: 'Medewerker per werkdag instellen via gekleurd bolletje (klikken wisselt door medewerkers)' },
+      { type: 'nieuw', tekst: 'Medewerker per werkdag instellen via dropdown' },
       { type: 'nieuw', tekst: 'Automatisch PDF opslaan naar OneDrive bij elke opgeslagen werkbon' },
       { type: 'nieuw', tekst: 'Foto\'s opgeslagen in dezelfde OneDrive-map als de PDF' },
       { type: 'nieuw', tekst: 'Taken afvinken via persoonlijke planningslink' },
