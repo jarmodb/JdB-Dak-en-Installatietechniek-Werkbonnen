@@ -814,8 +814,8 @@ export default function OfferteView({ klanten, producten, onWerkbonAangemaakt, m
       klant_email:    keuzes.klant ? huidig.klant_email : '',
       omschrijving:   keuzes.omschrijving ? verwerkVariabelen(huidig.tekst, huidig) : '',
       materialen:     keuzes.materialen ? (huidig.materialen || []).filter(m => m.naam).map(m => ({
-        naam: m.naam, aantal: m.aantal, eenheid: m.eenheid || 'stuk',
-        stukprijs: m.stukprijs, btw: huidig.btw_percentage || 21, medewerker_id: '',
+        omschrijving: m.naam, aantal: m.aantal, eenheid: m.eenheid || 'stuk',
+        prijs: m.stukprijs || 0, medewerker_id: '',
       })) : [],
     }
     setWerkbonModal(false)
