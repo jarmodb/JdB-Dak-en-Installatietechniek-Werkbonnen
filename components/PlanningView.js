@@ -450,7 +450,6 @@ export function MedewerkersView({ medewerkers, werkbonnen = [], onVervers, onTer
                       </div>
                     )
                   })()}
-                </div>
 
                   <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                     <button className="btn btn-licht" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => stelPinIn(m)} title="PIN wijzigen">🔑 PIN</button>
