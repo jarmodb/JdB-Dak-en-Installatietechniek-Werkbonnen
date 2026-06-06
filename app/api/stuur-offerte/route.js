@@ -1,12 +1,13 @@
 import nodemailer from 'nodemailer'
 import { NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 
 function euro(n) { return '€ ' + Number(n || 0).toFixed(2).replace('.', ',') }
 function datumNL(iso) { if (!iso) return ''; const [y, m, d] = iso.split('-'); return `${d}-${m}-${y}` }
 
 export async function POST(request) {
   try {
-    const { offerte, bericht, email, totalen, verwerkteT, av_url } = await request.json()
+    const { offerte, bericht, email, totalen, verwerkteT, av_url, offerte_pdf_base64 } = await request.json()
 
     const afzender = process.env.EMAIL_AFZENDER
     const wachtwoord = process.env.EMAIL_WACHTWOORD
@@ -102,20 +103,53 @@ export async function POST(request) {
       </div>
     `
 
-    // Algemene voorwaarden als bijlage ophalen
     const attachments = []
+
+    // Offerte als PDF bijlage (gegenereerd door de client)
+    if (offerte_pdf_base64) {
+      attachments.push({
+        filename: `Offerte ${offerte.nummer}.pdf`,
+        content: Buffer.from(offerte_pdf_base64, 'base64'),
+        contentType: 'application/pdf',
+      })
+    }
+
+    // Algemene voorwaarden als PDF bijlage
     if (av_url) {
+      let avBuffer = null
       try {
-        const avRes = await fetch(av_url)
-        if (avRes.ok) {
-          const buf = Buffer.from(await avRes.arrayBuffer())
-          attachments.push({
-            filename: 'Algemene voorwaarden.pdf',
-            content: buf,
-            contentType: 'application/pdf',
-          })
+        // Methode 1: Supabase admin download (werkt ook als bucket niet publiek is)
+        const supabaseAdmin = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL,
+          process.env.SUPABASE_SERVICE_KEY
+        )
+        const match = av_url.match(/\/object\/public\/werkbon-fotos\/([^?]+)/)
+        const pad = match?.[1]
+        if (pad) {
+          const { data: blob, error: dlError } = await supabaseAdmin.storage
+            .from('werkbon-fotos')
+            .download(decodeURIComponent(pad))
+          if (!dlError && blob) avBuffer = Buffer.from(await blob.arrayBuffer())
         }
       } catch {}
+
+      // Methode 2: direct fetch als fallback
+      if (!avBuffer) {
+        try {
+          const avRes = await fetch(av_url.split('?')[0])
+          if (avRes.ok) avBuffer = Buffer.from(await avRes.arrayBuffer())
+        } catch {}
+      }
+
+      if (avBuffer) {
+        attachments.push({
+          filename: 'Algemene voorwaarden.pdf',
+          content: avBuffer,
+          contentType: 'application/pdf',
+        })
+      } else {
+        console.warn('AV PDF kon niet worden opgehaald:', av_url)
+      }
     }
 
     await transporter.sendMail({

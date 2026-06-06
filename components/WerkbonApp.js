@@ -89,11 +89,11 @@ function euro(n) { return '€ ' + Number(n || 0).toFixed(2).replace('.', ',') }
 function datumNL(iso) { if (!iso) return ''; const [y, m, d] = iso.split('-'); return `${d}-${m}-${y}` }
 function vandaag() { return new Date().toISOString().split('T')[0] }
 
-function genNummer(werkbonnen) {
+function genNummer(werkbonnen, prefix = 'WB') {
   const jaar = new Date().getFullYear()
-  const prefix = `WB-${jaar}-`
-  const nummers = werkbonnen.filter(b => b.nummer?.startsWith(prefix)).map(b => parseInt(b.nummer.replace(prefix, '')) || 0)
-  return `${prefix}${String((nummers.length ? Math.max(...nummers) : 0) + 1).padStart(3, '0')}`
+  const p = `${prefix}-${jaar}-`
+  const nummers = werkbonnen.filter(b => b.nummer?.startsWith(p)).map(b => parseInt(b.nummer.replace(p, '')) || 0)
+  return `${p}${String((nummers.length ? Math.max(...nummers) : 0) + 1).padStart(3, '0')}`
 }
 
 function bereken(werkdagen, uurtarief, materialen) {
@@ -474,7 +474,7 @@ export default function WerkbonApp() {
       const draft = JSON.parse(localStorage.getItem(WB_DRAFT_KEY) || 'null')
       if (draft?.formulier?.klant_naam && window.confirm('Er is een niet-opgeslagen concept gevonden. Doorgaan waar je gebleven was?')) {
         skipAutosaveRef.current = true
-        setFormulier({ ...draft.formulier, nummer: genNummer(werkbonnen) })
+        setFormulier({ ...draft.formulier, nummer: genNummer(werkbonnen, instellingen.wb_prefix || 'WB') })
         setWerkdagen(draft.werkdagen?.length ? draft.werkdagen : [{ datum: vandaag(), omschrijving: '', uren: '' }])
         setGeselecteerdeTypes(draft.geselecteerdeTypes || [])
         setMaterialen(draft.materialen || [])
@@ -485,7 +485,7 @@ export default function WerkbonApp() {
       }
     } catch {}
     skipAutosaveRef.current = true
-    setFormulier({ ...leegFormulier(), nummer: genNummer(werkbonnen) })
+    setFormulier({ ...leegFormulier(), nummer: genNummer(werkbonnen, instellingen.wb_prefix || 'WB') })
     setWerkdagen([{ datum: vandaag(), omschrijving: '', uren: '' }])
     setGeselecteerdeTypes([]); setMaterialen([]); setFotos([]); setRitten([])
   }
@@ -1311,6 +1311,28 @@ function InstellingenView({ instellingen, onChange }) {
           <div className="veld"><label>KVK-nummer</label><input value={form.kvk_nummer || ''} onChange={e => sv('kvk_nummer', e.target.value)} placeholder="12345678" /></div>
         </div>
         <div className="veld"><label>IBAN</label><input value={form.iban || ''} onChange={e => sv('iban', e.target.value)} placeholder="NL00 BANK 0000 0000 00" /></div>
+      </div>
+      <div className="sectie">
+        <div className="sectie-titel">Nummering</div>
+        <p style={{ fontSize: 13, color: '#888', marginBottom: 12 }}>
+          Stel de prefix in voor automatisch gegenereerde nummers. Het jaar en volgnummer worden er automatisch achter gezet.
+        </p>
+        <div className="rij-2">
+          <div className="veld">
+            <label>Werkbon prefix</label>
+            <input value={form.wb_prefix || ''} onChange={e => sv('wb_prefix', e.target.value)} placeholder="WB" />
+            <div style={{ fontSize: 12, color: '#aaa', marginTop: 4 }}>
+              Voorbeeld: <strong>{(form.wb_prefix || 'WB').toUpperCase()}-{new Date().getFullYear()}-001</strong>
+            </div>
+          </div>
+          <div className="veld">
+            <label>Offerte prefix</label>
+            <input value={form.offerte_prefix || ''} onChange={e => sv('offerte_prefix', e.target.value)} placeholder="OFN" />
+            <div style={{ fontSize: 12, color: '#aaa', marginTop: 4 }}>
+              Voorbeeld: <strong>{(form.offerte_prefix || 'OFN').toUpperCase()}-{new Date().getFullYear()}-001</strong>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )

@@ -33,11 +33,11 @@ function datumNL(iso) { if (!iso) return ''; const [y, m, d] = iso.split('-'); r
 function vandaag() { return new Date().toISOString().split('T')[0] }
 function addDagen(iso, n) { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return d.toISOString().split('T')[0] }
 
-function genNummer(offertes) {
+function genNummer(offertes, prefix = 'OFN') {
   const jaar = new Date().getFullYear()
-  const prefix = `OFN-${jaar}-`
-  const nrs = offertes.filter(o => o.nummer?.startsWith(prefix)).map(o => parseInt(o.nummer.replace(prefix, '')) || 0)
-  return `${prefix}${String((nrs.length ? Math.max(...nrs) : 0) + 1).padStart(3, '0')}`
+  const p = `${prefix}-${jaar}-`
+  const nrs = offertes.filter(o => o.nummer?.startsWith(p)).map(o => parseInt(o.nummer.replace(p, '')) || 0)
+  return `${p}${String((nrs.length ? Math.max(...nrs) : 0) + 1).padStart(3, '0')}`
 }
 
 function berekenTotalen(form) {
@@ -426,9 +426,9 @@ function SjablonenView({ onTerug }) {
 }
 
 // ── Offerte formulier ─────────────────────────────────────────────────
-function OfferteFormulier({ offerte, offertes, klanten, producten, sjablonen, onOpslaan, onAnnuleer }) {
+function OfferteFormulier({ offerte, offertes, klanten, producten, sjablonen, instellingen = {}, onOpslaan, onAnnuleer }) {
   const [form, setForm] = useState(() => offerte ? { ...offerte } : {
-    nummer: genNummer(offertes),
+    nummer: genNummer(offertes, instellingen.offerte_prefix || 'OFN'),
     naam: '',
     datum: vandaag(),
     geldig_tot: addDagen(vandaag(), 30),
@@ -627,13 +627,17 @@ function OfferteFormulier({ offerte, offertes, klanten, producten, sjablonen, on
         <div className="sectie-titel">Gegevens</div>
         <div className="veld-rij">
           <div className="veld" style={{ flex: 1 }}>
+            <label>Offertenummer</label>
+            <input type="text" value={form.nummer || ''} onChange={e => sv('nummer', e.target.value)} placeholder={`${instellingen.offerte_prefix || 'OFN'}-${new Date().getFullYear()}-001`} />
+          </div>
+          <div className="veld" style={{ flex: 1 }}>
             <label>Datum offerte</label>
             <input type="date" value={form.datum || ''} onChange={e => sv('datum', e.target.value)} />
           </div>
-          <div className="veld" style={{ flex: 1 }}>
-            <label>Geldig tot</label>
-            <input type="date" value={form.geldig_tot || ''} onChange={e => sv('geldig_tot', e.target.value)} />
-          </div>
+        </div>
+        <div className="veld">
+          <label>Geldig tot</label>
+          <input type="date" value={form.geldig_tot || ''} onChange={e => sv('geldig_tot', e.target.value)} />
         </div>
       </div>
 
@@ -855,10 +859,40 @@ export default function OfferteView({ klanten, producten, onWerkbonAangemaakt, m
     setEmailBezig(true)
     try {
       const t = berekenTotalen(huidig)
+
+      // Genereer offerte PDF als base64 vanuit het print-element
+      let offertePdfBase64 = null
+      if (printRef.current) {
+        try {
+          const html2pdf = (await import('html2pdf.js')).default
+          const dataUri = await html2pdf()
+            .from(printRef.current)
+            .set({
+              margin: 0,
+              filename: `Offerte-${huidig.nummer}.pdf`,
+              image: { type: 'jpeg', quality: 0.92 },
+              html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' },
+              jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            })
+            .outputPdf('datauristring')
+          offertePdfBase64 = dataUri.split(',')[1] || null
+        } catch (pdfErr) {
+          console.warn('Offerte PDF genereren mislukt:', pdfErr)
+        }
+      }
+
       const res = await fetch('/api/stuur-offerte', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ offerte: huidig, bericht, email, totalen: t, verwerkteT: verwerkVariabelen(huidig.tekst, huidig), av_url: instellingen.av_url || null }),
+        body: JSON.stringify({
+          offerte: huidig,
+          bericht,
+          email,
+          totalen: t,
+          verwerkteT: verwerkVariabelen(huidig.tekst, huidig),
+          av_url: instellingen.av_url || null,
+          offerte_pdf_base64: offertePdfBase64,
+        }),
       })
       if (!res.ok) throw new Error((await res.json()).error || 'Onbekende fout')
       await wisselStatus(huidig, 'verstuurd')
@@ -881,6 +915,7 @@ export default function OfferteView({ klanten, producten, onWerkbonAangemaakt, m
         klanten={klanten}
         producten={producten}
         sjablonen={sjablonen}
+        instellingen={instellingen}
         onOpslaan={result => { if (msIngelogd) autoUploadRef.current = true; setHuidig(result); setView('detail'); laadAlles() }}
         onAnnuleer={() => setView(huidig ? 'detail' : 'lijst')}
       />
