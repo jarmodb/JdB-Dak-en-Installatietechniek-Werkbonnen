@@ -95,6 +95,38 @@ function KlantAC({ waarde, klanten, onChange, onSelect }) {
   )
 }
 
+// ── Materiaal autocomplete ────────────────────────────────────────────
+function MateriaalAC({ waarde, producten, onChange, onSelect }) {
+  const [open, setOpen] = useState(false)
+  const filtered = waarde
+    ? producten.filter(p => p.naam.toLowerCase().includes(waarde.toLowerCase())).slice(0, 6)
+    : []
+  return (
+    <div className="autocomplete" style={{ width: '100%' }}>
+      <input
+        value={waarde}
+        onChange={e => { onChange(e.target.value); setOpen(true) }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        placeholder="Naam materiaal"
+        style={{ width: '100%' }}
+      />
+      {open && filtered.length > 0 && (
+        <div className="autocomplete-dropdown">
+          {filtered.map(p => (
+            <div key={p.id} className="autocomplete-optie" onMouseDown={() => { onSelect(p); setOpen(false) }}>
+              <div>{p.naam}</div>
+              <div className="autocomplete-optie-sub">
+                {[p.eenheid, p.prijs != null ? euro(p.prijs) : null].filter(Boolean).join(' · ')}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Print view ────────────────────────────────────────────────────────
 function OffertePrint({ offerte }) {
   const t = berekenTotalen(offerte)
@@ -391,7 +423,56 @@ function OfferteFormulier({ offerte, offertes, klanten, producten, sjablonen, on
     status: 'concept',
   })
   const [bezig, setBezig] = useState(false)
+  const [autosaveStatus, setAutosaveStatus] = useState(null) // null | 'opslaan' | 'opgeslagen'
   const tekstRef = useRef(null)
+  const autosaveTimerRef = useRef(null)
+  const isEersteLaad = useRef(true)
+  const DRAFT_KEY = 'offerte-draft-nieuw'
+
+  // Concept herstellen bij nieuw formulier
+  useEffect(() => {
+    if (!offerte) {
+      try {
+        const opgeslagen = localStorage.getItem(DRAFT_KEY)
+        if (opgeslagen) {
+          const draft = JSON.parse(opgeslagen)
+          if (draft.klant_naam && window.confirm('Er is een niet-opgeslagen concept gevonden. Doorgaan waar je gebleven was?')) {
+            setForm(f => ({ ...f, ...draft }))
+          } else {
+            localStorage.removeItem(DRAFT_KEY)
+          }
+        }
+      } catch {}
+    }
+  }, [])
+
+  // Autosave — 2s na laatste wijziging
+  useEffect(() => {
+    if (isEersteLaad.current) { isEersteLaad.current = false; return }
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
+    autosaveTimerRef.current = setTimeout(async () => {
+      if (form.id) {
+        // Bestaande offerte → opslaan in Supabase
+        setAutosaveStatus('opslaan')
+        try {
+          const { id, ...data } = form
+          const { error } = await supabase.from('offertes').update(data).eq('id', id)
+          if (!error) {
+            setAutosaveStatus('opgeslagen')
+            setTimeout(() => setAutosaveStatus(null), 2500)
+          }
+        } catch {}
+      } else {
+        // Nieuwe offerte → concept opslaan in localStorage
+        try {
+          localStorage.setItem(DRAFT_KEY, JSON.stringify(form))
+          setAutosaveStatus('opgeslagen')
+          setTimeout(() => setAutosaveStatus(null), 2500)
+        } catch {}
+      }
+    }, 2000)
+    return () => clearTimeout(autosaveTimerRef.current)
+  }, [JSON.stringify(form)])
 
   function sv(k, v) { setForm(f => ({ ...f, [k]: v })) }
 
@@ -409,6 +490,12 @@ function OfferteFormulier({ offerte, offertes, klanten, producten, sjablonen, on
 
   function verwijderMateriaal(idx) {
     sv('materialen', (form.materialen || []).filter((_, i) => i !== idx))
+  }
+
+  function productSelecteren(idx, product) {
+    const m = [...(form.materialen || [])]
+    m[idx] = { ...m[idx], naam: product.naam, eenheid: product.eenheid || 'stuk', stukprijs: product.prijs || 0 }
+    sv('materialen', m)
   }
 
   function invoegVar(v) {
@@ -440,7 +527,10 @@ function OfferteFormulier({ offerte, offertes, klanten, producten, sjablonen, on
         result = res.data; error = res.error
       }
       if (error) { alert('Opslaan mislukt: ' + error.message); setBezig(false); return }
-      if (result) onOpslaan(result)
+      if (result) {
+        localStorage.removeItem(DRAFT_KEY)
+        onOpslaan(result)
+      }
     } catch (err) {
       alert('Onverwachte fout: ' + err.message)
     }
@@ -453,6 +543,11 @@ function OfferteFormulier({ offerte, offertes, klanten, producten, sjablonen, on
     <div className="view-content form-content with-bottom-nav">
       <div className="top-acties">
         <button className="form-terug" onClick={onAnnuleer}>← Terug</button>
+        {autosaveStatus && (
+          <span style={{ fontSize: 12, color: autosaveStatus === 'opslaan' ? '#C9A227' : '#52c41a', alignSelf: 'center', flex: 1, textAlign: 'center' }}>
+            {autosaveStatus === 'opslaan' ? '⏳ Automatisch opslaan...' : '✓ Concept opgeslagen'}
+          </span>
+        )}
         <button className="btn btn-primair" onClick={opslaan} disabled={bezig}>{bezig ? 'Opslaan...' : '✓ Opslaan'}</button>
       </div>
 
@@ -552,8 +647,12 @@ function OfferteFormulier({ offerte, offertes, klanten, producten, sjablonen, on
           <div key={i} className="werkdag-item">
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
               <div style={{ flex: '2 1 140px' }}>
-                <input value={m.naam} onChange={e => updateMateriaal(i, 'naam', e.target.value)} placeholder="Naam materiaal" style={{ width: '100%' }} list={`prod-of-${i}`} />
-                <datalist id={`prod-of-${i}`}>{producten.map(p => <option key={p.id} value={p.naam} />)}</datalist>
+                <MateriaalAC
+                  waarde={m.naam}
+                  producten={producten}
+                  onChange={v => updateMateriaal(i, 'naam', v)}
+                  onSelect={p => productSelecteren(i, p)}
+                />
               </div>
               <div style={{ flex: '0 0 70px' }}>
                 <input type="number" value={m.aantal} onChange={e => updateMateriaal(i, 'aantal', e.target.value)} placeholder="Aantal" min="0" step="0.01" style={{ width: '100%' }} />

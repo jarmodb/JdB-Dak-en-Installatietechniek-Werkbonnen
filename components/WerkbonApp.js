@@ -334,9 +334,13 @@ export default function WerkbonApp() {
   const [fotoUploadBezig, setFotoUploadBezig] = useState(false)
   const [pdfStatus, setPdfStatus] = useState(null) // null | 'bezig' | 'klaar' | 'fout'
   const [changelogOpen, setChangelogOpen] = useState(false)
+  const [autosaveStatus, setAutosaveStatus] = useState(null)
   const fotoInputRef = useRef(null)
   const bonPrintRef = useRef(null)
   const autoSavePdfRef = useRef(false)
+  const autosaveTimerRef = useRef(null)
+  const skipAutosaveRef = useRef(false)
+  const WB_DRAFT_KEY = 'werkbon-draft-nieuw'
 
   // Auto-save PDF naar OneDrive zodra detail view geladen is na opslaan
   useEffect(() => {
@@ -400,6 +404,48 @@ export default function WerkbonApp() {
     return () => { channels.forEach(c => supabase.removeChannel(c)); window.removeEventListener('popstate', handlePopState) }
   }, [])
 
+  // ── Autosave werkbon formulier ──────────────────────────────────────
+  useEffect(() => {
+    if (view !== 'formulier') return
+    if (skipAutosaveRef.current) { skipAutosaveRef.current = false; return }
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
+    autosaveTimerRef.current = setTimeout(async () => {
+      if (bewerkModus && huidigeBon?.id) {
+        // Bestaande bon → Supabase
+        const geldigeWerkdagen = werkdagen.filter(w => w.datum || w.omschrijving || w.uren).map(w => {
+          const med = medewerkers.find(m => m.id === w.medewerker_id)
+          return { datum: w.datum, omschrijving: w.omschrijving, uren: parseFloat(w.uren) || 0, medewerker_id: w.medewerker_id || null, medewerker_naam: med?.naam || null, medewerker_kleur: med?.kleur || null }
+        })
+        const geldigeMat = materialen.filter(m => m.omschrijving || m.aantal || m.prijs).map(m => {
+          const med = medewerkers.find(x => x.id === m.medewerker_id)
+          return { omschrijving: m.omschrijving, aantal: parseFloat(m.aantal) || 0, eenheid: m.eenheid || 'stuk', prijs: parseFloat(m.prijs) || 0, medewerker_id: m.medewerker_id || null, medewerker_naam: med?.naam || null, medewerker_kleur: med?.kleur || null }
+        })
+        const rij = {
+          datum: formulier.datum, klant_naam: formulier.klant_naam,
+          klant_adres: [formulier.klant_straat, formulier.klant_huisnummer].filter(Boolean).join(' '),
+          klant_postcode: formulier.klant_postcode, klant_plaats: formulier.klant_plaats,
+          klant_tel: formulier.klant_tel, klant_email: formulier.klant_email,
+          omschrijving: formulier.omschrijving, notities: formulier.notities,
+          uurtarief: parseFloat(formulier.uurtarief) || 0,
+          type: geselecteerdeTypes.join(', '),
+          werkdagen: geldigeWerkdagen, materialen: geldigeMat,
+        }
+        setAutosaveStatus('opslaan')
+        try {
+          const { error } = await supabase.from('werkbonnen').update(rij).eq('id', huidigeBon.id)
+          if (!error) { setAutosaveStatus('opgeslagen'); setTimeout(() => setAutosaveStatus(null), 2500) }
+        } catch {}
+      } else if (!bewerkModus) {
+        // Nieuwe bon → localStorage
+        try {
+          localStorage.setItem(WB_DRAFT_KEY, JSON.stringify({ formulier, werkdagen, geselecteerdeTypes, materialen }))
+          setAutosaveStatus('opgeslagen'); setTimeout(() => setAutosaveStatus(null), 2500)
+        } catch {}
+      }
+    }, 2000)
+    return () => clearTimeout(autosaveTimerRef.current)
+  }, [JSON.stringify({ formulier, werkdagen, geselecteerdeTypes, materialen })])
+
   async function laadAlles() { await Promise.all([laadWerkbonnen(), laadKlanten(), laadProducten(), laadMedewerkers()]) }
   async function laadMedewerkers() { const { data } = await supabase.from('planning_links').select('*').order('naam'); setMedewerkers(data || []) }
   async function laadWerkbonnen() {
@@ -421,6 +467,22 @@ export default function WerkbonApp() {
   function nieuweWerkbon() {
     navigeer('formulier')
     setBewerkModus(false); setHuidigeBon(null)
+    // Concept herstellen als aanwezig
+    try {
+      const draft = JSON.parse(localStorage.getItem(WB_DRAFT_KEY) || 'null')
+      if (draft?.formulier?.klant_naam && window.confirm('Er is een niet-opgeslagen concept gevonden. Doorgaan waar je gebleven was?')) {
+        skipAutosaveRef.current = true
+        setFormulier({ ...draft.formulier, nummer: genNummer(werkbonnen) })
+        setWerkdagen(draft.werkdagen?.length ? draft.werkdagen : [{ datum: vandaag(), omschrijving: '', uren: '' }])
+        setGeselecteerdeTypes(draft.geselecteerdeTypes || [])
+        setMaterialen(draft.materialen || [])
+        setFotos([]); setRitten([])
+        return
+      } else {
+        localStorage.removeItem(WB_DRAFT_KEY)
+      }
+    } catch {}
+    skipAutosaveRef.current = true
     setFormulier({ ...leegFormulier(), nummer: genNummer(werkbonnen) })
     setWerkdagen([{ datum: vandaag(), omschrijving: '', uren: '' }])
     setGeselecteerdeTypes([]); setMaterialen([]); setFotos([]); setRitten([])
@@ -428,6 +490,7 @@ export default function WerkbonApp() {
 
   function bewerkWerkbon() {
     if (!huidigeBon) return
+    skipAutosaveRef.current = true
     navigeer('formulier')
     setBewerkModus(true)
     const adresM = (huidigeBon.klant_adres || '').match(/^(.*?)\s+(\d+\S*)$/)
@@ -450,6 +513,7 @@ export default function WerkbonApp() {
   }
 
   function werkbonVanOfferte(data) {
+    skipAutosaveRef.current = true
     navigeer('formulier')
     setBewerkModus(false); setHuidigeBon(null)
     setFormulier({
@@ -608,6 +672,7 @@ export default function WerkbonApp() {
     }
     await laadWerkbonnen(); setBezig(false)
     if (result) {
+      localStorage.removeItem(WB_DRAFT_KEY)
       if (msIngelogd) autoSavePdfRef.current = true
       toonDetail(result)
     } else toonOverzicht()
@@ -777,7 +842,14 @@ export default function WerkbonApp() {
       {/* ── FORMULIER ── */}
       {view === 'formulier' && (
         <div className="view-content form-content">
-          <button className="form-terug" onClick={toonOverzicht}>← Terug</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <button className="form-terug" style={{ margin: 0 }} onClick={toonOverzicht}>← Terug</button>
+            {autosaveStatus && (
+              <span style={{ fontSize: 12, color: autosaveStatus === 'opslaan' ? '#C9A227' : '#52c41a', flex: 1, textAlign: 'center' }}>
+                {autosaveStatus === 'opslaan' ? '⏳ Automatisch opslaan...' : '✓ Concept opgeslagen'}
+              </span>
+            )}
+          </div>
 
           <div className="sectie">
             <div className="sectie-titel">Werkbon info</div>

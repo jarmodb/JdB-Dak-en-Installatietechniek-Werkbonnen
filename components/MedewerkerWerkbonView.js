@@ -32,12 +32,47 @@ export default function MedewerkerWerkbonView({ medewerker, view, huidigeBon, on
   const [fotos, setFotos] = useState([])
   const [postcodeBezig, setPostcodeBezig] = useState(false)
   const [fotoUploadBezig, setFotoUploadBezig] = useState(false)
+  const [autosaveStatus, setAutosaveStatus] = useState(null)
   const fotoInputRef = useRef(null)
+  const autosaveTimerRef = useRef(null)
+  const skipAutosaveRef = useRef(false)
 
   useEffect(() => {
     laadWerkbonnen()
     laadProducten()
   }, [])
+
+  // Autosave voor bewerkModus — 2.5s na laatste wijziging
+  useEffect(() => {
+    if (view !== 'formulier' || !bewerkModus || !huidigeBon?.id) return
+    if (skipAutosaveRef.current) { skipAutosaveRef.current = false; return }
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
+    autosaveTimerRef.current = setTimeout(async () => {
+      const geldigeWerkdagen = werkdagen
+        .filter(w => w.datum || w.omschrijving || w.uren)
+        .map(w => ({ datum: w.datum, omschrijving: w.omschrijving, uren: parseFloat(w.uren) || 0, medewerker_id: w.medewerker_id || null, medewerker_naam: w.medewerker_naam || null, medewerker_kleur: w.medewerker_kleur || null }))
+      const geldigeMat = materialen
+        .filter(m => m.omschrijving)
+        .map(m => ({ omschrijving: m.omschrijving, aantal: parseFloat(m.aantal) || 1, eenheid: m.eenheid || 'stuk', prijs: parseFloat(m.prijs) || 0, medewerker_id: m.medewerker_id || null, medewerker_naam: m.medewerker_naam || null, medewerker_kleur: m.medewerker_kleur || null }))
+      const geldigeRitten = ritten
+        .filter(r => r.startadres || r.kilometers)
+        .map(({ _bezig, ...r }) => ({ ...r, reistijd: parseFloat(r.reistijd) || 0, kilometers: parseFloat(r.kilometers) || 0 }))
+      const rij = {
+        werkdagen: geldigeWerkdagen, materialen: geldigeMat, ritten: geldigeRitten, fotos,
+        notities: formulier.notities,
+        uren: geldigeWerkdagen.reduce((s, w) => s + w.uren, 0),
+      }
+      setAutosaveStatus('opslaan')
+      try {
+        const { error } = await supabase.from('werkbonnen').update(rij).eq('id', huidigeBon.id)
+        if (!error) {
+          setAutosaveStatus('opgeslagen')
+          setTimeout(() => setAutosaveStatus(null), 2500)
+        }
+      } catch {}
+    }, 2500)
+    return () => clearTimeout(autosaveTimerRef.current)
+  }, [JSON.stringify({ formulier, werkdagen, materialen, ritten, fotos })])
 
   async function laadWerkbonnen() {
     setLaden(true)
@@ -162,6 +197,7 @@ export default function MedewerkerWerkbonView({ medewerker, view, huidigeBon, on
 
   // ── Bewerken laden ──
   function bewerkWerkbon(bon) {
+    skipAutosaveRef.current = true
     setBewerkModus(true)
     const adresM = (bon.klant_adres || '').match(/^(.*?)\s+(\d+\S*)$/)
     setFormulier({
@@ -375,6 +411,11 @@ export default function MedewerkerWerkbonView({ medewerker, view, huidigeBon, on
     <div className="view-content form-content">
       <div className="top-acties">
         <button className="form-terug" onClick={onTerugNaarDetail}>← Terug</button>
+        {autosaveStatus && (
+          <span style={{ fontSize: 12, color: autosaveStatus === 'opslaan' ? '#C9A227' : '#52c41a', alignSelf: 'center', flex: 1, textAlign: 'center' }}>
+            {autosaveStatus === 'opslaan' ? '⏳ Opslaan...' : '✓ Automatisch opgeslagen'}
+          </span>
+        )}
         <button className="btn btn-primair" onClick={opslaan} disabled={bezig}>{bezig ? 'Opslaan...' : '💾 Opslaan'}</button>
       </div>
 
