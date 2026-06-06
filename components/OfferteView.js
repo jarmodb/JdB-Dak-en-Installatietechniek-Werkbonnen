@@ -429,17 +429,22 @@ function OfferteFormulier({ offerte, offertes, klanten, producten, sjablonen, on
   async function opslaan() {
     if (!form.klant_naam?.trim()) { alert('Klantnaam is verplicht'); return }
     setBezig(true)
-    const { id, ...data } = form
-    let result
-    if (id) {
-      const { data: upd } = await supabase.from('offertes').update(data).eq('id', id).select().single()
-      result = upd
-    } else {
-      const { data: ins } = await supabase.from('offertes').insert(data).select().single()
-      result = ins
+    try {
+      const { id, ...data } = form
+      let result, error
+      if (id) {
+        const res = await supabase.from('offertes').update(data).eq('id', id).select().single()
+        result = res.data; error = res.error
+      } else {
+        const res = await supabase.from('offertes').insert(data).select().single()
+        result = res.data; error = res.error
+      }
+      if (error) { alert('Opslaan mislukt: ' + error.message); setBezig(false); return }
+      if (result) onOpslaan(result)
+    } catch (err) {
+      alert('Onverwachte fout: ' + err.message)
     }
     setBezig(false)
-    if (result) onOpslaan(result)
   }
 
   const t = berekenTotalen(form)
@@ -612,7 +617,7 @@ function OfferteFormulier({ offerte, offertes, klanten, producten, sjablonen, on
 }
 
 // ── Hoofd OfferteView ─────────────────────────────────────────────────
-export default function OfferteView({ klanten, producten, onWerkbonAangemaakt }) {
+export default function OfferteView({ klanten, producten, onWerkbonAangemaakt, msIngelogd }) {
   const [offertes, setOffertes] = useState([])
   const [sjablonen, setSjablonen] = useState([])
   const [laden, setLaden] = useState(true)
@@ -621,8 +626,45 @@ export default function OfferteView({ klanten, producten, onWerkbonAangemaakt })
   const [werkbonModal, setWerkbonModal] = useState(false)
   const [emailModal, setEmailModal] = useState(false)
   const [emailBezig, setEmailBezig] = useState(false)
+  const [pdfStatus, setPdfStatus] = useState(null)
+  const printRef = useRef(null)
+  const autoUploadRef = useRef(false)
 
   useEffect(() => { laadAlles() }, [])
+
+  // Auto-upload PDF naar OneDrive na opslaan
+  useEffect(() => {
+    if (view !== 'detail' || !autoUploadRef.current || !huidig || !printRef.current || !msIngelogd) return
+    autoUploadRef.current = false
+    const t = setTimeout(() => slaOffertePdfOp(printRef.current, huidig), 900)
+    return () => clearTimeout(t)
+  }, [view, huidig, msIngelogd])
+
+  async function slaOffertePdfOp(element, offerte) {
+    if (!element || !offerte) return
+    setPdfStatus('bezig')
+    try {
+      const { uploadPdfNaarOneDrive } = await import('@/lib/onedrive')
+      const html2pdf = (await import('html2pdf.js')).default
+      const pdfBlob = await html2pdf()
+        .from(element)
+        .set({
+          margin: [8, 8, 8, 8],
+          filename: `${offerte.nummer}.pdf`,
+          image: { type: 'jpeg', quality: 0.92 },
+          html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        })
+        .outputPdf('blob')
+      await uploadPdfNaarOneDrive(pdfBlob, offerte.nummer, offerte.klant_naam)
+      setPdfStatus('klaar')
+      setTimeout(() => setPdfStatus(null), 4000)
+    } catch (err) {
+      console.error('Offerte PDF naar OneDrive mislukt:', err)
+      setPdfStatus('fout')
+      setTimeout(() => setPdfStatus(null), 6000)
+    }
+  }
 
   async function laadAlles() {
     setLaden(true)
@@ -698,7 +740,7 @@ export default function OfferteView({ klanten, producten, onWerkbonAangemaakt })
         klanten={klanten}
         producten={producten}
         sjablonen={sjablonen}
-        onOpslaan={result => { setHuidig(result); setView('detail'); laadAlles() }}
+        onOpslaan={result => { if (msIngelogd) autoUploadRef.current = true; setHuidig(result); setView('detail'); laadAlles() }}
         onAnnuleer={() => setView(huidig ? 'detail' : 'lijst')}
       />
     )
@@ -730,7 +772,14 @@ export default function OfferteView({ klanten, producten, onWerkbonAangemaakt })
             ))}
           </div>
 
-          <OffertePrint offerte={huidig} />
+          {pdfStatus && (
+            <div className={`pdf-onedrive-status ${pdfStatus}`} style={{ marginBottom: 8 }}>
+              {pdfStatus === 'bezig' && '☁️ PDF opslaan naar OneDrive...'}
+              {pdfStatus === 'klaar' && '✓ PDF opgeslagen in OneDrive'}
+              {pdfStatus === 'fout' && '⚠️ PDF opslaan mislukt'}
+            </div>
+          )}
+          <div ref={printRef}><OffertePrint offerte={huidig} /></div>
 
           <div className="no-print" style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
             <button className="btn btn-gevaar-licht" onClick={() => verwijder(huidig)}>🗑️ Verwijderen</button>

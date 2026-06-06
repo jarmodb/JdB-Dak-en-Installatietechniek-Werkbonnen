@@ -759,7 +759,7 @@ export default function WerkbonApp() {
       {view === 'planning' && <PlanningView klanten={klanten} werkbonnen={werkbonnen} onWerkbonNavigeer={bon => toonDetail(bon)} />}
 
       {/* ── OFFERTES ── */}
-      {view === 'offertes' && <OfferteView klanten={klanten} producten={producten} onWerkbonAangemaakt={werkbonVanOfferte} />}
+      {view === 'offertes' && <OfferteView klanten={klanten} producten={producten} onWerkbonAangemaakt={werkbonVanOfferte} msIngelogd={msIngelogd} />}
 
       {/* ── TODOS ── */}
       {view === 'todos' && <TodoView />}
