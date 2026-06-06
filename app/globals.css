@@ -807,18 +807,47 @@ tr:last-child td { border-bottom: none; }
 
 /* === PRINT === */
 @media print {
+  @page { margin: 0; size: A4 portrait; }
+
   body { background: white; }
   header,
   .form-terug,
   .detail-acties,
   .fab,
   .modal-overlay,
-  .bon-footer { display: none !important; }
-  .view-content { padding: 0; }
-  .bon-print { box-shadow: none; border-radius: 0; max-width: 100%; }
-  .bon-kop { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .no-print,
+  .top-acties,
+  .bon-medewerkers-blok,
+  .pdf-onedrive-status,
+  .bottom-nav { display: none !important; }
+
+  .view-content { padding: 0 !important; }
+
+  /* Werkbon print */
+  .bon-print {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    max-width: 100% !important;
+    padding-bottom: 10mm;
+  }
+  .bon-kop { padding: 14mm 18mm 12mm; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .bon-body { padding: 8mm 18mm; }
+  .bon-footer {
+    display: block !important;
+    padding: 6mm 18mm 10mm;
+    border-top: 1px solid #e0e0e0;
+    margin-top: 8mm;
+    font-size: 11px;
+    color: #888;
+    text-align: center;
+    line-height: 1.6;
+  }
   .bon-kop-nr .nr { color: var(--goud) !important; }
   .bon-type-badge { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  /* Offerte print */
+  .offerte-print { padding: 14mm 18mm; }
+  .offerte-print-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
 
 /* === RESPONSIVE === */

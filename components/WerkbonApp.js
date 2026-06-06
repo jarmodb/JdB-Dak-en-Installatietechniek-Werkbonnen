@@ -335,6 +335,7 @@ export default function WerkbonApp() {
   const [pdfStatus, setPdfStatus] = useState(null) // null | 'bezig' | 'klaar' | 'fout'
   const [changelogOpen, setChangelogOpen] = useState(false)
   const [autosaveStatus, setAutosaveStatus] = useState(null)
+  const [instellingen, setInstellingen] = useState({})
   const fotoInputRef = useRef(null)
   const bonPrintRef = useRef(null)
   const autoSavePdfRef = useRef(false)
@@ -446,8 +447,9 @@ export default function WerkbonApp() {
     return () => clearTimeout(autosaveTimerRef.current)
   }, [JSON.stringify({ formulier, werkdagen, geselecteerdeTypes, materialen })])
 
-  async function laadAlles() { await Promise.all([laadWerkbonnen(), laadKlanten(), laadProducten(), laadMedewerkers()]) }
+  async function laadAlles() { await Promise.all([laadWerkbonnen(), laadKlanten(), laadProducten(), laadMedewerkers(), laadInstellingen()]) }
   async function laadMedewerkers() { const { data } = await supabase.from('planning_links').select('*').order('naam'); setMedewerkers(data || []) }
+  async function laadInstellingen() { const { data } = await supabase.from('instellingen').select('*').eq('id', 'singleton').single(); if (data) setInstellingen(data) }
   async function laadWerkbonnen() {
     setLaden(true)
     const { data } = await supabase.from('werkbonnen').select('*').order('aangemaakt', { ascending: false })
@@ -519,6 +521,7 @@ export default function WerkbonApp() {
     setFormulier({
       ...leegFormulier(),
       nummer: genNummer(werkbonnen),
+      naam: data.naam || '',
       klant_naam: data.klant_naam || '',
       klant_straat: data.klant_straat || '',
       klant_huisnummer: data.klant_huisnummer || '',
@@ -760,8 +763,8 @@ export default function WerkbonApp() {
   }
 
   const totalen = bereken(werkdagen, formulier.uurtarief, materialen)
-  const toonNav = ['overzicht', 'klanten', 'producten', 'planning', 'todos', 'offertes'].includes(view)
-  const headerTitel = view === 'overzicht' ? 'JdB Werkbonnen' : view === 'klanten' ? 'Klanten' : view === 'producten' ? 'Producten' : view === 'planning' ? 'Planning' : view === 'todos' ? 'Taken' : view === 'medewerkers' ? 'Medewerkers' : view === 'offertes' ? 'Offertes' : view === 'formulier' ? (bewerkModus ? 'Bewerken' : 'Nieuwe werkbon') : huidigeBon?.nummer || ''
+  const toonNav = ['overzicht', 'klanten', 'producten', 'planning', 'todos', 'offertes', 'instellingen'].includes(view)
+  const headerTitel = view === 'overzicht' ? 'JdB Werkbonnen' : view === 'klanten' ? 'Klanten' : view === 'producten' ? 'Producten' : view === 'planning' ? 'Planning' : view === 'todos' ? 'Taken' : view === 'medewerkers' ? 'Medewerkers' : view === 'offertes' ? 'Offertes' : view === 'instellingen' ? 'Instellingen' : view === 'formulier' ? (bewerkModus ? 'Bewerken' : 'Nieuwe werkbon') : huidigeBon?.nummer || ''
 
   return (
     <>
@@ -825,7 +828,10 @@ export default function WerkbonApp() {
       {view === 'planning' && <PlanningView klanten={klanten} werkbonnen={werkbonnen} onWerkbonNavigeer={bon => toonDetail(bon)} />}
 
       {/* ── OFFERTES ── */}
-      {view === 'offertes' && <OfferteView klanten={klanten} producten={producten} onWerkbonAangemaakt={werkbonVanOfferte} msIngelogd={msIngelogd} />}
+      {view === 'offertes' && <OfferteView klanten={klanten} producten={producten} onWerkbonAangemaakt={werkbonVanOfferte} msIngelogd={msIngelogd} instellingen={instellingen} />}
+
+      {/* ── INSTELLINGEN ── */}
+      {view === 'instellingen' && <InstellingenView instellingen={instellingen} onChange={setInstellingen} />}
 
       {/* ── TODOS ── */}
       {view === 'todos' && <TodoView />}
@@ -1109,7 +1115,7 @@ export default function WerkbonApp() {
               </div>
             </div>
           )}
-          <div className="bon-print" ref={bonPrintRef}><BonAfdruk bon={huidigeBon} /></div>
+          <div className="bon-print" ref={bonPrintRef}><BonAfdruk bon={huidigeBon} instellingen={instellingen} /></div>
         </div>
       )}
 
@@ -1181,14 +1187,103 @@ export default function WerkbonApp() {
           <button className={view === 'offertes' ? 'actief' : ''} onClick={() => navigeer('offertes')}>
             <span className="nav-icon">📄</span><span className="nav-label">Offertes</span>
           </button>
+          <button className={view === 'instellingen' ? 'actief' : ''} onClick={() => navigeer('instellingen')}>
+            <span className="nav-icon">⚙️</span><span className="nav-label">Instellingen</span>
+          </button>
         </nav>
       )}
     </>
   )
 }
 
+// ── Instellingen ─────────────────────────────────────────────────────
+function InstellingenView({ instellingen, onChange }) {
+  const [form, setForm] = useState({ ...instellingen })
+  const [bezig, setBezig] = useState(false)
+  const [opgeslagen, setOpgeslagen] = useState(false)
+  const [logoBezig, setLogoBezig] = useState(false)
+  const logoInputRef = useRef(null)
+
+  useEffect(() => { setForm({ ...instellingen }) }, [JSON.stringify(instellingen)])
+
+  function sv(k, v) { setForm(f => ({ ...f, [k]: v })) }
+
+  async function opslaan() {
+    setBezig(true)
+    const { id, ...data } = form
+    const { error } = await supabase.from('instellingen').upsert({ id: 'singleton', ...data })
+    if (!error) { onChange({ id: 'singleton', ...data }); setOpgeslagen(true); setTimeout(() => setOpgeslagen(false), 3000) }
+    else alert('Opslaan mislukt: ' + error.message)
+    setBezig(false)
+  }
+
+  async function handleLogo(e) {
+    const bestand = e.target.files?.[0]
+    if (!bestand) return
+    setLogoBezig(true)
+    try {
+      const ext = bestand.name.slice(bestand.name.lastIndexOf('.')) || '.png'
+      const pad = `instellingen/logo${ext}`
+      const res = await fetch('/api/foto-upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pad }) })
+      const { signedUrl, publicUrl } = await res.json()
+      await fetch(signedUrl, { method: 'PUT', headers: { 'Content-Type': bestand.type || 'image/png', 'x-upsert': 'true' }, body: bestand })
+      sv('logo_url', publicUrl + '?v=' + Date.now())
+    } catch (err) { alert('Logo upload mislukt: ' + err.message) }
+    setLogoBezig(false)
+    if (logoInputRef.current) logoInputRef.current.value = ''
+  }
+
+  return (
+    <div className="view-content with-bottom-nav">
+      <div className="top-acties">
+        <div />
+        <button className="btn btn-primair" onClick={opslaan} disabled={bezig}>
+          {bezig ? 'Opslaan...' : opgeslagen ? '✓ Opgeslagen!' : '✓ Opslaan'}
+        </button>
+      </div>
+      <div className="sectie">
+        <div className="sectie-titel">Logo</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 }}>
+          <img src={form.logo_url || '/logo.png'} alt="Logo" style={{ height: 64, objectFit: 'contain', background: '#1a1a1a', padding: 8, borderRadius: 8 }} onError={e => e.target.style.display = 'none'} />
+          <div>
+            <input ref={logoInputRef} type="file" accept="image/*" onChange={handleLogo} style={{ display: 'none' }} />
+            <button className="btn btn-licht" onClick={() => logoInputRef.current?.click()} disabled={logoBezig} style={{ marginRight: 8 }}>
+              {logoBezig ? '⏳ Uploaden...' : '📷 Logo uploaden'}
+            </button>
+            {form.logo_url && <button className="btn btn-licht" onClick={() => sv('logo_url', '')}>Verwijder</button>}
+          </div>
+        </div>
+      </div>
+      <div className="sectie">
+        <div className="sectie-titel">Bedrijfsgegevens</div>
+        <div className="veld"><label>Bedrijfsnaam</label><input value={form.bedrijfsnaam || ''} onChange={e => sv('bedrijfsnaam', e.target.value)} placeholder="JdB Dak- en Installatietechniek" /></div>
+        <div className="veld"><label>Adres</label><input value={form.adres || ''} onChange={e => sv('adres', e.target.value)} placeholder="Straat 123" /></div>
+        <div className="rij-2">
+          <div className="veld"><label>Postcode</label><input value={form.postcode || ''} onChange={e => sv('postcode', e.target.value)} placeholder="1234 AB" /></div>
+          <div className="veld"><label>Plaats</label><input value={form.plaats || ''} onChange={e => sv('plaats', e.target.value)} placeholder="Amsterdam" /></div>
+        </div>
+        <div className="rij-2">
+          <div className="veld"><label>Telefoon</label><input value={form.telefoon || ''} onChange={e => sv('telefoon', e.target.value)} placeholder="06-12345678" /></div>
+          <div className="veld"><label>E-mail</label><input value={form.email || ''} onChange={e => sv('email', e.target.value)} placeholder="info@bedrijf.nl" /></div>
+        </div>
+        <div className="veld"><label>Website</label><input value={form.website || ''} onChange={e => sv('website', e.target.value)} placeholder="www.bedrijf.nl" /></div>
+      </div>
+      <div className="sectie">
+        <div className="sectie-titel">Financieel</div>
+        <div className="rij-2">
+          <div className="veld"><label>BTW-nummer</label><input value={form.btw_nummer || ''} onChange={e => sv('btw_nummer', e.target.value)} placeholder="NL123456789B01" /></div>
+          <div className="veld"><label>KVK-nummer</label><input value={form.kvk_nummer || ''} onChange={e => sv('kvk_nummer', e.target.value)} placeholder="12345678" /></div>
+        </div>
+        <div className="veld"><label>IBAN</label><input value={form.iban || ''} onChange={e => sv('iban', e.target.value)} placeholder="NL00 BANK 0000 0000 00" /></div>
+      </div>
+    </div>
+  )
+}
+
 // ── Bon afdruk ────────────────────────────────────────────────────────
-function BonAfdruk({ bon }) {
+function BonAfdruk({ bon, instellingen = {} }) {
+  const bedrijfsnaam = instellingen.bedrijfsnaam || 'JdB Dak- & Installatietechniek'
+  const logoUrl = instellingen.logo_url || '/logo.png'
   const types = bon.type ? bon.type.split(', ').filter(Boolean) : []
   const werkdagen = bon.werkdagen || []
   const materialen = bon.materialen || []
@@ -1200,10 +1295,16 @@ function BonAfdruk({ bon }) {
       <div className="bon-kop">
         <div className="bon-kop-rij">
           <div className="bon-logo-blok">
-            <img src="/logo.png" alt="JdB logo" className="bon-logo" onError={e => e.target.style.display = 'none'} />
+            <img src={logoUrl} alt="Logo" className="bon-logo" onError={e => e.target.style.display = 'none'} />
             <div className="bon-logo-tekst">
-              <div className="bon-bedrijf">JdB Dak- &amp; Installatietechniek</div>
-              <div className="bon-bedrijf-sub">Dak- &amp; Installatietechniek</div>
+              <div className="bon-bedrijf">{bedrijfsnaam}</div>
+              {(instellingen.adres || instellingen.telefoon || instellingen.email) && (
+                <div className="bon-bedrijf-sub" style={{ lineHeight: 1.5 }}>
+                  {instellingen.adres && <span>{instellingen.adres}{instellingen.postcode || instellingen.plaats ? ', ' + [instellingen.postcode, instellingen.plaats].filter(Boolean).join(' ') : ''}</span>}
+                  {instellingen.telefoon && <><br />{instellingen.telefoon}</>}
+                  {instellingen.email && <> · {instellingen.email}</>}
+                </div>
+              )}
             </div>
           </div>
           <div className="bon-kop-nr">
@@ -1313,7 +1414,22 @@ function BonAfdruk({ bon }) {
         {fotos.length > 0 && <div className="bon-sectie"><div className="bon-sectie-titel">Foto's ({fotos.length})</div><div className="bon-foto-lijst">{fotos.map((f, i) => <a key={i} href={f.shareUrl || f.url} target="_blank" rel="noreferrer" className="bon-foto-link">📷 {f.naam}</a>)}</div></div>}
       </div>
 
-      <div className="bon-footer">JdB Dak- &amp; Installatietechniek &bull; Werkbon {bon.nummer} &bull; {datumNL(bon.datum)}</div>
+      <div className="bon-footer">
+        <div style={{ fontWeight: 600, marginBottom: 2 }}>{bedrijfsnaam}</div>
+        <div>
+          {[instellingen.adres, [instellingen.postcode, instellingen.plaats].filter(Boolean).join(' ')].filter(Boolean).join(', ')}
+          {instellingen.telefoon && ` · ${instellingen.telefoon}`}
+          {instellingen.email && ` · ${instellingen.email}`}
+          {instellingen.website && ` · ${instellingen.website}`}
+        </div>
+        {(instellingen.kvk_nummer || instellingen.btw_nummer || instellingen.iban) && (
+          <div style={{ marginTop: 2 }}>
+            {instellingen.kvk_nummer && `KVK: ${instellingen.kvk_nummer}`}
+            {instellingen.btw_nummer && ` · BTW: ${instellingen.btw_nummer}`}
+            {instellingen.iban && ` · IBAN: ${instellingen.iban}`}
+          </div>
+        )}
+      </div>
     </>
   )
 }

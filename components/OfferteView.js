@@ -128,20 +128,31 @@ function MateriaalAC({ waarde, producten, onChange, onSelect }) {
 }
 
 // ── Print view ────────────────────────────────────────────────────────
-function OffertePrint({ offerte }) {
+function OffertePrint({ offerte, instellingen = {} }) {
   const t = berekenTotalen(offerte)
   const tekst = verwerkVariabelen(offerte.tekst, offerte)
+  const bedrijfsnaam = instellingen.bedrijfsnaam || 'JdB Dak- en Installatietechniek'
+  const logoUrl = instellingen.logo_url || '/logo.png'
   return (
     <div className="offerte-print">
       <div className="offerte-print-header">
-        <div>
-          <div className="offerte-print-bedrijf">JdB Dak- en Installatietechniek</div>
-          <div className="offerte-print-sub">Offerte</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <img src={logoUrl} alt="Logo" style={{ height: 56, objectFit: 'contain' }} onError={e => e.target.style.display = 'none'} />
+          <div>
+            <div className="offerte-print-bedrijf">{bedrijfsnaam}</div>
+            <div className="offerte-print-sub" style={{ lineHeight: 1.6 }}>
+              {instellingen.adres && <span>{instellingen.adres}{(instellingen.postcode || instellingen.plaats) ? ', ' + [instellingen.postcode, instellingen.plaats].filter(Boolean).join(' ') : ''}</span>}
+              {instellingen.telefoon && <><br />{instellingen.telefoon}</>}
+              {instellingen.email && <> · {instellingen.email}</>}
+              {instellingen.website && <><br />{instellingen.website}</>}
+            </div>
+          </div>
         </div>
         <div className="offerte-print-nummers">
           <div><strong>Nummer:</strong> {offerte.nummer}</div>
           <div><strong>Datum:</strong> {datumNL(offerte.datum)}</div>
           {offerte.geldig_tot && <div><strong>Geldig tot:</strong> {datumNL(offerte.geldig_tot)}</div>}
+          {offerte.naam && <div style={{ marginTop: 4, fontWeight: 700, color: '#1a1a1a' }}>{offerte.naam}</div>}
         </div>
       </div>
 
@@ -219,6 +230,13 @@ function OffertePrint({ offerte }) {
 
       <div className="offerte-print-footer">
         <p>Wij vertrouwen erop u hiermee een passend aanbod te hebben gedaan. Voor vragen kunt u contact met ons opnemen.</p>
+        {(instellingen.kvk_nummer || instellingen.btw_nummer || instellingen.iban) && (
+          <p style={{ fontSize: 11, color: '#888', marginTop: 4 }}>
+            {instellingen.kvk_nummer && `KVK: ${instellingen.kvk_nummer}`}
+            {instellingen.btw_nummer && ` · BTW: ${instellingen.btw_nummer}`}
+            {instellingen.iban && ` · IBAN: ${instellingen.iban}`}
+          </p>
+        )}
         <div className="offerte-print-akkoord">
           <div>
             <div className="offerte-akkoord-lijn" />
@@ -740,7 +758,7 @@ function OfferteFormulier({ offerte, offertes, klanten, producten, sjablonen, on
 }
 
 // ── Hoofd OfferteView ─────────────────────────────────────────────────
-export default function OfferteView({ klanten, producten, onWerkbonAangemaakt, msIngelogd }) {
+export default function OfferteView({ klanten, producten, onWerkbonAangemaakt, msIngelogd, instellingen = {} }) {
   const [offertes, setOffertes] = useState([])
   const [sjablonen, setSjablonen] = useState([])
   const [laden, setLaden] = useState(true)
@@ -815,6 +833,7 @@ export default function OfferteView({ klanten, producten, onWerkbonAangemaakt, m
     if (!huidig) return
     const adresM = (huidig.klant_adres || '').match(/^(.*?)\s+(\d+\S*)$/)
     const werkbonData = {
+      naam:           huidig.naam || '',
       klant_naam:     keuzes.klant ? huidig.klant_naam : '',
       klant_straat:   keuzes.klant ? (adresM ? adresM[1] : huidig.klant_adres || '') : '',
       klant_huisnummer: keuzes.klant ? (adresM ? adresM[2] : '') : '',
@@ -907,7 +926,7 @@ export default function OfferteView({ klanten, producten, onWerkbonAangemaakt, m
               {pdfStatus === 'fout' && '⚠️ PDF opslaan mislukt'}
             </div>
           )}
-          <div ref={printRef}><OffertePrint offerte={huidig} /></div>
+          <div ref={printRef}><OffertePrint offerte={huidig} instellingen={instellingen} /></div>
 
           <div className="no-print" style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
             <button className="btn btn-gevaar-licht" onClick={() => verwijder(huidig)}>🗑️ Verwijderen</button>
