@@ -797,7 +797,7 @@ export default function OfferteView({ klanten, producten, onWerkbonAangemaakt, m
           margin: 0,
           filename: `${offerte.nummer}.pdf`,
           image: { type: 'jpeg', quality: 0.97 },
-          html2canvas: { scale: 3, useCORS: true, logging: false, backgroundColor: '#ffffff', windowWidth: 794 },
+          html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff', windowWidth: 794 },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
         })
         .outputPdf('blob')
@@ -879,32 +879,14 @@ export default function OfferteView({ klanten, producten, onWerkbonAangemaakt, m
         }
       }
 
-      // Haal AV PDF op via server-side proxy (service key, omzeilt CORS/bucket-permissies)
-      let avPdfBase64 = null
-      if (instellingen.av_url) {
-        try {
-          const avUrl = instellingen.av_url
-          let pad = avUrl
-          if (avUrl.startsWith('http')) {
-            const m = avUrl.match(/\/object\/public\/werkbon-fotos\/([^?]+)/)
-            pad = m?.[1] ? decodeURIComponent(m[1]) : null
-          }
-          if (pad) {
-            const res = await fetch('/api/haal-bestand', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ pad }),
-            })
-            if (res.ok) {
-              const { base64 } = await res.json()
-              avPdfBase64 = base64 || null
-            } else {
-              console.warn('AV PDF proxy mislukt:', await res.text())
-            }
-          }
-        } catch (e) {
-          console.warn('AV PDF ophalen mislukt:', e)
-        }
+      // Bepaal het AV opslagpad — de server downloadt het zelf (service key)
+      const avUrl = instellingen.av_url
+      let avPad = null
+      if (avUrl) {
+        avPad = avUrl.startsWith('http')
+          ? (avUrl.match(/\/object\/public\/werkbon-fotos\/([^?]+)/)?.[1] || null)
+          : avUrl
+        if (avPad) avPad = decodeURIComponent(avPad)
       }
 
       const res = await fetch('/api/stuur-offerte', {
@@ -915,7 +897,7 @@ export default function OfferteView({ klanten, producten, onWerkbonAangemaakt, m
           bericht,
           email,
           offerte_pdf_base64: offertePdfBase64,
-          av_pdf_base64: avPdfBase64,
+          av_pad: avPad,
         }),
       })
       if (!res.ok) throw new Error((await res.json()).error || 'Onbekende fout')

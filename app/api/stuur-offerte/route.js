@@ -1,9 +1,10 @@
 import nodemailer from 'nodemailer'
 import { NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 
 export async function POST(request) {
   try {
-    const { offerte, bericht, email, offerte_pdf_base64, av_pdf_base64 } = await request.json()
+    const { offerte, bericht, email, offerte_pdf_base64, av_pad } = await request.json()
 
     const afzender = process.env.EMAIL_AFZENDER
     const wachtwoord = process.env.EMAIL_WACHTWOORD
@@ -23,7 +24,7 @@ export async function POST(request) {
             ${bericht.split('\n').map(r => `<p style="margin:0 0 6px">${r || '&nbsp;'}</p>`).join('')}
           </div>
           <div style="background:#fafafa;border:1px solid #e8e8e8;border-left:3px solid #C9A227;border-radius:0 6px 6px 0;padding:14px 18px;font-size:13px;color:#555">
-            📎 De offerte vindt u als PDF bijlage bij deze e-mail.${av_pdf_base64 ? '<br>📋 De algemene voorwaarden zijn eveneens bijgevoegd.' : ''}
+            📎 De offerte vindt u als PDF bijlage bij deze e-mail.${av_pad ? '<br>📋 De algemene voorwaarden zijn eveneens bijgevoegd.' : ''}
           </div>
           <p style="font-size:12px;color:#aaa;margin-top:28px;border-top:1px solid #f0f0f0;padding-top:16px">
             Voor akkoord of vragen: <a href="mailto:jdbtechniek@gmail.com" style="color:#C9A227">jdbtechniek@gmail.com</a>
@@ -42,12 +43,26 @@ export async function POST(request) {
       })
     }
 
-    if (av_pdf_base64) {
-      attachments.push({
-        filename: 'Algemene voorwaarden.pdf',
-        content: Buffer.from(av_pdf_base64, 'base64'),
-        contentType: 'application/pdf',
-      })
+    // AV PDF server-side ophalen via service key (geen grote base64 in de request)
+    if (av_pad) {
+      try {
+        const supabaseAdmin = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL,
+          process.env.SUPABASE_SERVICE_KEY
+        )
+        const { data: blob, error } = await supabaseAdmin.storage.from('werkbon-fotos').download(av_pad)
+        if (!error && blob) {
+          attachments.push({
+            filename: 'Algemene voorwaarden.pdf',
+            content: Buffer.from(await blob.arrayBuffer()),
+            contentType: 'application/pdf',
+          })
+        } else {
+          console.warn('AV PDF download mislukt:', error?.message)
+        }
+      } catch (e) {
+        console.warn('AV PDF fout:', e.message)
+      }
     }
 
     await transporter.sendMail({
