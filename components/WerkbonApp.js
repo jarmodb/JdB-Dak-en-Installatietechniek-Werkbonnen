@@ -1239,7 +1239,7 @@ function InstellingenView({ instellingen, onChange }) {
       const pad = `instellingen/logo${ext}`
       const res = await fetch('/api/foto-upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pad }) })
       const { signedUrl, publicUrl } = await res.json()
-      await fetch(signedUrl, { method: 'PUT', headers: { 'Content-Type': bestand.type || 'image/png', 'x-upsert': 'true' }, body: bestand })
+      await fetch(signedUrl, { method: 'PUT', headers: { 'Content-Type': bestand.type || 'image/png', 'Cache-Control': 'no-cache' }, body: bestand })
       sv('logo_url', publicUrl + '?v=' + Date.now())
     } catch (err) { alert('Logo upload mislukt: ' + err.message) }
     setLogoBezig(false)
@@ -1255,7 +1255,7 @@ function InstellingenView({ instellingen, onChange }) {
       const pad = 'instellingen/algemene-voorwaarden.pdf'
       const res = await fetch('/api/foto-upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pad }) })
       const { signedUrl } = await res.json()
-      const uploadRes = await fetch(signedUrl, { method: 'PUT', headers: { 'Content-Type': 'application/pdf', 'x-upsert': 'true' }, body: bestand })
+      const uploadRes = await fetch(signedUrl, { method: 'PUT', headers: { 'Content-Type': 'application/pdf', 'Cache-Control': 'no-cache' }, body: bestand })
       if (!uploadRes.ok) throw new Error('Upload naar storage mislukt (' + uploadRes.status + ')')
       sv('av_url', pad) // Sla het opslagpad op — niet de publieke URL (die kan null zijn bij privé-bucket)
     } catch (err) { alert('Upload mislukt: ' + err.message) }

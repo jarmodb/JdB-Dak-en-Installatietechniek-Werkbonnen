@@ -181,7 +181,7 @@ export default function MedewerkerWerkbonView({ medewerker, view, huidigeBon, on
         // Stap 2: bestand direct naar Supabase uploaden via signed URL
         const uploadRes = await fetch(data.signedUrl, {
           method: 'PUT',
-          headers: { 'Content-Type': bestand.type || 'image/jpeg', 'x-upsert': 'true' },
+          headers: { 'Content-Type': bestand.type || 'image/jpeg', 'Cache-Control': 'no-cache' },
           body: bestand,
         })
         if (!uploadRes.ok) throw new Error('Upload naar Supabase mislukt')

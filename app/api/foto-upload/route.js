@@ -21,7 +21,7 @@ export async function POST(request) {
 
     const { data, error } = await supabaseAdmin.storage
       .from('werkbon-fotos')
-      .createSignedUploadUrl(pad)
+      .createSignedUploadUrl(pad, { upsert: true })
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
