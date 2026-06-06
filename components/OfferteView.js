@@ -883,13 +883,17 @@ export default function OfferteView({ klanten, producten, onWerkbonAangemaakt, m
       let avPdfBase64 = null
       if (instellingen.av_url) {
         try {
-          const match = instellingen.av_url.match(/\/object\/public\/werkbon-fotos\/([^?]+)/)
-          const pad = match?.[1]
+          const avUrl = instellingen.av_url
+          let pad = avUrl
+          if (avUrl.startsWith('http')) {
+            const m = avUrl.match(/\/object\/public\/werkbon-fotos\/([^?]+)/)
+            pad = m?.[1] ? decodeURIComponent(m[1]) : null
+          }
           if (pad) {
             const res = await fetch('/api/haal-bestand', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ pad: decodeURIComponent(pad) }),
+              body: JSON.stringify({ pad }),
             })
             if (res.ok) {
               const { base64 } = await res.json()

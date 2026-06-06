@@ -1196,6 +1196,17 @@ export default function WerkbonApp() {
   )
 }
 
+// Extraheert het Supabase opslagpad uit een av_url die ofwel al een pad is
+// ofwel een volledige URL (legacy-formaat). Werkt met beide.
+function avPadUitUrl(av_url) {
+  if (!av_url) return null
+  if (av_url.startsWith('http')) {
+    const m = av_url.match(/\/object\/public\/werkbon-fotos\/([^?]+)/)
+    return m?.[1] ? decodeURIComponent(m[1]) : null
+  }
+  return av_url // al een pad
+}
+
 // ── Instellingen ─────────────────────────────────────────────────────
 function InstellingenView({ instellingen, onChange }) {
   const [form, setForm] = useState({ ...instellingen })
@@ -1243,12 +1254,26 @@ function InstellingenView({ instellingen, onChange }) {
     try {
       const pad = 'instellingen/algemene-voorwaarden.pdf'
       const res = await fetch('/api/foto-upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pad }) })
-      const { signedUrl, publicUrl } = await res.json()
-      await fetch(signedUrl, { method: 'PUT', headers: { 'Content-Type': 'application/pdf', 'x-upsert': 'true' }, body: bestand })
-      sv('av_url', publicUrl + '?v=' + Date.now())
+      const { signedUrl } = await res.json()
+      const uploadRes = await fetch(signedUrl, { method: 'PUT', headers: { 'Content-Type': 'application/pdf', 'x-upsert': 'true' }, body: bestand })
+      if (!uploadRes.ok) throw new Error('Upload naar storage mislukt (' + uploadRes.status + ')')
+      sv('av_url', pad) // Sla het opslagpad op — niet de publieke URL (die kan null zijn bij privé-bucket)
     } catch (err) { alert('Upload mislukt: ' + err.message) }
     setAvBezig(false)
     if (avInputRef.current) avInputRef.current.value = ''
+  }
+
+  async function bekijkAvPdf() {
+    const pad = avPadUitUrl(form.av_url)
+    if (!pad) { alert('Geen geldige PDF gevonden. Upload de PDF opnieuw.'); return }
+    try {
+      const res = await fetch('/api/haal-bestand', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pad }) })
+      if (!res.ok) throw new Error(await res.text())
+      const { base64 } = await res.json()
+      const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0))
+      const blob = new Blob([bytes], { type: 'application/pdf' })
+      window.open(URL.createObjectURL(blob), '_blank')
+    } catch (err) { alert('PDF openen mislukt: ' + err.message) }
   }
 
   return (
@@ -1279,9 +1304,9 @@ function InstellingenView({ instellingen, onChange }) {
         </p>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           {form.av_url && (
-            <a href={form.av_url} target="_blank" rel="noreferrer" className="btn btn-licht" style={{ textDecoration: 'none' }}>
+            <button className="btn btn-licht" onClick={bekijkAvPdf}>
               📄 Bekijk huidige PDF
-            </a>
+            </button>
           )}
           <input ref={avInputRef} type="file" accept="application/pdf" onChange={handleAv} style={{ display: 'none' }} />
           <button className="btn btn-licht" onClick={() => avInputRef.current?.click()} disabled={avBezig}>
