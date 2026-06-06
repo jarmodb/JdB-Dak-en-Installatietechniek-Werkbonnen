@@ -649,8 +649,8 @@ export default function WerkbonApp() {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button className="btn-changelog-header" onClick={() => navigeer('medewerkers')} title="Medewerkers beheren">
-            👥
+          <button className="btn-ms-header" onClick={() => navigeer('medewerkers')}>
+            Personeel
           </button>
           <button className={`btn-ms-header ${msIngelogd ? 'ingelogd' : ''}`} onClick={msIngelogd ? handleMsLogout : handleMsLogin} title={msIngelogd ? 'Uitloggen bij Microsoft' : 'Inloggen voor foto-upload'}>
             {msIngelogd ? '☁️ MS ✓' : '☁️ MS'}
