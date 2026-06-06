@@ -6,8 +6,20 @@ import { genereerUBL } from '@/lib/ubl'
 import { msLogin, msLogout, msGetAccount, uploadFotoNaarOneDrive, uploadPdfNaarOneDrive, syncFotosNaarOneDrive } from '@/lib/onedrive'
 import PlanningView, { MedewerkersView } from '@/components/PlanningView'
 import TodoView from '@/components/TodoView'
+import OfferteView from '@/components/OfferteView'
 
 const CHANGELOG = [
+  {
+    versie: 'v1.6', datum: '6 juni 2026', items: [
+      { type: 'nieuw', tekst: 'Offertes module: aanmaken, bewerken, versturen per e-mail' },
+      { type: 'nieuw', tekst: 'Dynamische tekst met variabelen ({klant_naam}, {totaal}, etc.)' },
+      { type: 'nieuw', tekst: 'Tekst-sjablonen per werktype herbruikbaar' },
+      { type: 'nieuw', tekst: 'Materiaallijst met toggle: wel/niet tonen op offerte' },
+      { type: 'nieuw', tekst: 'Status: Concept → Verstuurd → Geaccepteerd / Afgewezen' },
+      { type: 'nieuw', tekst: 'Werkbon aanmaken vanuit offerte met keuze wat je overneemt' },
+      { type: 'nieuw', tekst: 'Variabele BTW (0%, 9%, 21%)' },
+    ]
+  },
   {
     versie: 'v1.5', datum: '6 juni 2026', items: [
       { type: 'nieuw', tekst: 'E-mailmelding als Jordy een werkbon toewijst aan een medewerker' },
@@ -437,6 +449,25 @@ export default function WerkbonApp() {
     setRitten(huidigeBon.ritten?.length ? huidigeBon.ritten : [])
   }
 
+  function werkbonVanOfferte(data) {
+    navigeer('formulier')
+    setBewerkModus(false); setHuidigeBon(null)
+    setFormulier({
+      ...leegFormulier(),
+      nummer: genNummer(werkbonnen),
+      klant_naam: data.klant_naam || '',
+      klant_straat: data.klant_straat || '',
+      klant_huisnummer: data.klant_huisnummer || '',
+      klant_postcode: data.klant_postcode || '',
+      klant_plaats: data.klant_plaats || '',
+      klant_email: data.klant_email || '',
+      omschrijving: data.omschrijving || '',
+    })
+    setWerkdagen([{ datum: vandaag(), omschrijving: '', uren: '' }])
+    setGeselecteerdeTypes([]); setFotos([]); setRitten([])
+    setMaterialen(data.materialen || [])
+  }
+
   // ── Formulier ──────────────────────────────────────────────────────
   function setVeld(key, val) { setFormulier(f => ({ ...f, [key]: val })) }
   function toggleType(type) { setGeselecteerdeTypes(t => t.includes(type) ? t.filter(x => x !== type) : [...t, type]) }
@@ -664,8 +695,8 @@ export default function WerkbonApp() {
   }
 
   const totalen = bereken(werkdagen, formulier.uurtarief, materialen)
-  const toonNav = ['overzicht', 'klanten', 'producten', 'planning', 'todos'].includes(view)
-  const headerTitel = view === 'overzicht' ? 'JdB Werkbonnen' : view === 'klanten' ? 'Klanten' : view === 'producten' ? 'Producten' : view === 'planning' ? 'Planning' : view === 'todos' ? 'Taken' : view === 'medewerkers' ? 'Medewerkers' : view === 'formulier' ? (bewerkModus ? 'Bewerken' : 'Nieuwe werkbon') : huidigeBon?.nummer || ''
+  const toonNav = ['overzicht', 'klanten', 'producten', 'planning', 'todos', 'offertes'].includes(view)
+  const headerTitel = view === 'overzicht' ? 'JdB Werkbonnen' : view === 'klanten' ? 'Klanten' : view === 'producten' ? 'Producten' : view === 'planning' ? 'Planning' : view === 'todos' ? 'Taken' : view === 'medewerkers' ? 'Medewerkers' : view === 'offertes' ? 'Offertes' : view === 'formulier' ? (bewerkModus ? 'Bewerken' : 'Nieuwe werkbon') : huidigeBon?.nummer || ''
 
   return (
     <>
@@ -726,6 +757,9 @@ export default function WerkbonApp() {
 
       {/* ── PLANNING ── */}
       {view === 'planning' && <PlanningView klanten={klanten} werkbonnen={werkbonnen} onWerkbonNavigeer={bon => toonDetail(bon)} />}
+
+      {/* ── OFFERTES ── */}
+      {view === 'offertes' && <OfferteView klanten={klanten} producten={producten} onWerkbonAangemaakt={werkbonVanOfferte} />}
 
       {/* ── TODOS ── */}
       {view === 'todos' && <TodoView />}
@@ -1063,6 +1097,9 @@ export default function WerkbonApp() {
           </button>
           <button className={view === 'todos' ? 'actief' : ''} onClick={() => navigeer('todos')}>
             <span className="nav-icon">✅</span><span className="nav-label">Taken</span>
+          </button>
+          <button className={view === 'offertes' ? 'actief' : ''} onClick={() => navigeer('offertes')}>
+            <span className="nav-icon">📄</span><span className="nav-label">Offertes</span>
           </button>
         </nav>
       )}

@@ -1329,3 +1329,75 @@ tr:last-child td { border-bottom: none; }
   border: 1px solid; border-radius: 10px;
   padding: 2px 8px; font-size: 11px; font-weight: 600;
 }
+
+/* === OFFERTES === */
+.offerte-totaal-blok {
+  background: #fafafa; border: 1px solid #e8e8e8; border-radius: 8px;
+  padding: 12px 16px; margin-top: 8px;
+}
+.offerte-totaal-rij {
+  display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; color: #555;
+}
+.offerte-totaal-rij.totaal {
+  font-weight: 700; font-size: 15px; border-top: 1px solid #e8e8e8;
+  padding-top: 8px; margin-top: 6px; color: var(--tekst);
+}
+
+/* === OFFERTE PRINT === */
+.offerte-print {
+  background: white; padding: 32px; font-size: 13px; color: #222; line-height: 1.5;
+}
+.offerte-print-header {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  border-bottom: 2px solid #C9A227; padding-bottom: 16px; margin-bottom: 20px;
+}
+.offerte-print-bedrijf { font-size: 20px; font-weight: 700; color: #1a1a1a; }
+.offerte-print-sub { font-size: 13px; color: #888; margin-top: 2px; }
+.offerte-print-nummers { text-align: right; font-size: 13px; }
+.offerte-print-klant {
+  background: #fafafa; border: 1px solid #e8e8e8; border-radius: 6px;
+  padding: 12px 16px; margin-bottom: 20px; font-size: 13px;
+}
+.offerte-print-tekst {
+  margin-bottom: 20px; font-size: 13px; line-height: 1.7;
+  border-left: 3px solid #C9A227; padding-left: 14px;
+}
+.offerte-print-sectie { margin-bottom: 20px; }
+.offerte-print-sectie-titel { font-weight: 700; font-size: 13px; margin-bottom: 8px; color: #444; }
+.offerte-print-tabel { width: 100%; border-collapse: collapse; font-size: 13px; }
+.offerte-print-tabel th {
+  text-align: left; padding: 6px 8px; border-bottom: 2px solid #e0e0e0;
+  font-size: 12px; color: #666; background: #f5f5f5;
+}
+.offerte-print-tabel td { padding: 5px 8px; border-bottom: 1px solid #f0f0f0; }
+.offerte-print-tabel tr:last-child td { border-bottom: none; }
+.offerte-print-totalen {
+  border-top: 2px solid #e0e0e0; padding-top: 12px; margin-top: 8px;
+}
+.offerte-print-totaal-rij {
+  display: flex; justify-content: space-between; font-size: 13px;
+  padding: 3px 0; color: #555;
+}
+.offerte-print-totaal-rij.totaal {
+  font-size: 16px; font-weight: 700; color: #1a1a1a;
+  border-top: 1px solid #e0e0e0; padding-top: 8px; margin-top: 4px;
+}
+.offerte-print-notities {
+  margin-top: 16px; font-size: 12px; color: #666;
+  border-top: 1px solid #f0f0f0; padding-top: 10px;
+}
+.offerte-print-footer { margin-top: 32px; font-size: 13px; color: #555; }
+.offerte-print-akkoord {
+  display: flex; gap: 32px; margin-top: 24px; flex-wrap: wrap;
+}
+.offerte-akkoord-lijn { border-bottom: 1px solid #333; width: 180px; margin-bottom: 4px; height: 32px; }
+.offerte-akkoord-label { font-size: 11px; color: #888; }
+
+/* Print mode */
+@media print {
+  header, .bottom-nav, .top-acties, .no-print, nav { display: none !important; }
+  body { background: white !important; }
+  .view-content { padding: 0 !important; }
+  .sectie { display: none !important; }
+  .offerte-print { display: block !important; padding: 0 !important; }
+}
