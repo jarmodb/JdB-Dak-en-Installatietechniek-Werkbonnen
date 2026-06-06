@@ -853,7 +853,7 @@ export default function OfferteView({ klanten, producten, onWerkbonAangemaakt, m
   }
 
   // ── Views ─────────────────────────────────────────────────────────
-  if (view === 'sjablonen') return <SjablonenView onTerug={() => setView('lijst')} />
+  if (view === 'sjablonen') return <SjablonenView onTerug={() => { laadAlles(); setView('lijst') }} />
 
   if (view === 'formulier') {
     return (
