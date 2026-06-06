@@ -126,10 +126,15 @@ export default function PlanningDeelPage() {
 
     function handlePop(e) {
       const s = e.state
-      const tab = s?.tab || s?.nav === 'tab' ? s?.tab : null
-      setActieveTab(tab || 'planning')
-      setWerkbonView('lijst')
-      setHuidigeBon(null)
+      if (s?.nav === 'werkbon-detail') {
+        setActieveTab('werkbonnen'); setWerkbonView('detail')
+      } else if (s?.nav === 'werkbon-formulier') {
+        setActieveTab('werkbonnen'); setWerkbonView('formulier')
+      } else {
+        // tab-niveau of geen state: toon de juiste tab + reset werkbonnen naar lijst
+        setActieveTab(s?.tab || 'planning')
+        setWerkbonView('lijst'); setHuidigeBon(null)
+      }
     }
     window.addEventListener('popstate', handlePop)
 
@@ -163,12 +168,21 @@ export default function PlanningDeelPage() {
     setHuidigeBon(null)
   }
 
-  // Binnen werkbonnen: geen history pushes, directe state-updates
-  function openWerkbonDetail(bon)   { setHuidigeBon(bon); setWerkbonView('detail') }
-  function openWerkbonFormulier(bon){ setHuidigeBon(bon); setWerkbonView('formulier') }
-  function toonWerkbonLijst()       { setWerkbonView('lijst'); setHuidigeBon(null) }
-  function toonWerkbonDetail()      { setWerkbonView('detail') }
-  function werkbonOpgeslagen(bon)   { setHuidigeBon(bon); setWerkbonView('detail') }
+  // Werkbon navigatie — pushState zodat browser back werkt, ← Terug knop gebruikt directe callbacks
+  function openWerkbonDetail(bon) {
+    window.history.pushState({ nav: 'werkbon-detail' }, '')
+    setHuidigeBon(bon); setWerkbonView('detail')
+  }
+  function openWerkbonFormulier(bon) {
+    window.history.pushState({ nav: 'werkbon-formulier' }, '')
+    setHuidigeBon(bon); setWerkbonView('formulier')
+  }
+  function toonWerkbonLijst()  { setWerkbonView('lijst'); setHuidigeBon(null) }
+  function toonWerkbonDetail() { setWerkbonView('detail') }
+  function werkbonOpgeslagen(bon) {
+    window.history.replaceState({ nav: 'werkbon-detail' }, '')
+    setHuidigeBon(bon); setWerkbonView('detail')
+  }
 
   async function laadData(link) {
     document.title = `JdB – ${link.naam}`
