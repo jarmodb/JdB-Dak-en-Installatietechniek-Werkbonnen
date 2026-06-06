@@ -327,12 +327,35 @@ export default function WerkbonApp() {
     return () => clearTimeout(t)
   }, [view, huidigeBon])
 
-  // Sync medewerker-foto's (Supabase) naar OneDrive zodra Jordy een bon opent
+  // Sync medewerker-foto's (Supabase) naar OneDrive zodra Jordy een bon opent,
+  // verwijder daarna uit Supabase Storage en update de URL's in de database.
   useEffect(() => {
     if (view !== 'detail' || !huidigeBon || !msIngelogd) return
     const heeftSupabaseFotos = (huidigeBon.fotos || []).some(f => f.url?.includes('supabase'))
     if (!heeftSupabaseFotos) return
-    syncFotosNaarOneDrive(huidigeBon.fotos, huidigeBon.nummer, huidigeBon.klant_naam)
+
+    async function voerSyncUit() {
+      const bijgewerkteFotos = await syncFotosNaarOneDrive(huidigeBon.fotos, huidigeBon.nummer, huidigeBon.klant_naam)
+      if (!bijgewerkteFotos) return
+
+      // Verwijder gesyncte bestanden uit Supabase Storage
+      const teVerwijderen = bijgewerkteFotos
+        .filter(f => f._supabasePad)
+        .map(f => f._supabasePad)
+      if (teVerwijderen.length) {
+        await supabase.storage.from('werkbon-fotos').remove(teVerwijderen)
+      }
+
+      // Sla schone fotos op (zonder _supabasePad veld)
+      const schoneFotos = bijgewerkteFotos.map(({ _supabasePad, ...f }) => f)
+      await supabase.from('werkbonnen').update({ fotos: schoneFotos }).eq('id', huidigeBon.id)
+
+      // Update lokale state
+      const bijgewerkteBon = { ...huidigeBon, fotos: schoneFotos }
+      setHuidigeBon(bijgewerkteBon)
+      setWerkbonnen(w => w.map(b => b.id === huidigeBon.id ? bijgewerkteBon : b))
+    }
+    voerSyncUit()
   }, [view, huidigeBon?.id, msIngelogd])
 
   useEffect(() => {
