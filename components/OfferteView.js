@@ -796,7 +796,7 @@ export default function OfferteView({ klanten, producten, onWerkbonAangemaakt, m
         .set({
           margin: 0,
           filename: `${offerte.nummer}.pdf`,
-          image: { type: 'png' },
+          image: { type: 'jpeg', quality: 0.97 },
           html2canvas: { scale: 3, useCORS: true, logging: false, backgroundColor: '#ffffff', windowWidth: 794 },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
         })
