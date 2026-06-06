@@ -9,6 +9,13 @@ import TodoView from '@/components/TodoView'
 
 const CHANGELOG = [
   {
+    versie: 'v1.5', datum: '6 juni 2026', items: [
+      { type: 'nieuw', tekst: 'E-mailmelding als Jordy een werkbon toewijst aan een medewerker' },
+      { type: 'nieuw', tekst: 'Per medewerker in- of uitschakelen of ze meldingen ontvangen' },
+      { type: 'nieuw', tekst: 'E-mailadres instelbaar per medewerker in het Personeel-scherm' },
+    ]
+  },
+  {
     versie: 'v1.4', datum: '6 juni 2026', items: [
       { type: 'nieuw', tekst: 'Medewerker login via PIN op persoonlijke link' },
       { type: 'nieuw', tekst: 'Medewerkers kunnen eigen werkbonnen aanmaken en bewerken' },
@@ -577,13 +584,35 @@ export default function WerkbonApp() {
 
   async function wijzigWerkbonMedewerker(medewerkerId) {
     const huidig = huidigeBon.medewerkers || []
-    const nieuw = huidig.includes(medewerkerId)
-      ? huidig.filter(id => id !== medewerkerId)
-      : [...huidig, medewerkerId]
+    const wordtToegevoegd = !huidig.includes(medewerkerId)
+    const nieuw = wordtToegevoegd
+      ? [...huidig, medewerkerId]
+      : huidig.filter(id => id !== medewerkerId)
     await supabase.from('werkbonnen').update({ medewerkers: nieuw }).eq('id', huidigeBon.id)
     const bijgewerkt = { ...huidigeBon, medewerkers: nieuw }
     setHuidigeBon(bijgewerkt)
     setWerkbonnen(w => w.map(b => b.id === huidigeBon.id ? bijgewerkt : b))
+
+    // Stuur e-mailmelding als medewerker wordt toegevoegd en meldingen aan staan
+    if (wordtToegevoegd) {
+      const med = medewerkers.find(m => m.id === medewerkerId)
+      if (med?.email && (med.meldingen ?? true)) {
+        fetch('/api/stuur-melding', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: med.email,
+            naam: med.naam,
+            werkbonNummer: huidigeBon.nummer,
+            klantNaam: huidigeBon.klant_naam,
+            klantAdres: huidigeBon.klant_adres,
+            omschrijving: huidigeBon.omschrijving,
+            token: med.token,
+            origin: window.location.origin,
+          }),
+        }).catch(err => console.warn('Melding sturen mislukt:', err))
+      }
+    }
   }
 
   async function wisselStatus() {

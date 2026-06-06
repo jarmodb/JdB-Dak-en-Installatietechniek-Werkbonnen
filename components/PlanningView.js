@@ -271,7 +271,28 @@ function AfspraakForm({ form, setForm, klanten, werkbonnen, medewerkers, onOpsla
 // ── Medewerkers beheer ────────────────────────────────────────────────
 export function MedewerkersView({ medewerkers, onVervers, onTerug }) {
   const [pinZichtbaar, setPinZichtbaar] = useState({})
+  const [emailBewerken, setEmailBewerken] = useState({})
+  const [emailWaarden, setEmailWaarden] = useState({})
+
   function togglePin(id) { setPinZichtbaar(p => ({ ...p, [id]: !p[id] })) }
+
+  function startEmailBewerken(m) {
+    setEmailWaarden(e => ({ ...e, [m.id]: m.email || '' }))
+    setEmailBewerken(e => ({ ...e, [m.id]: true }))
+  }
+
+  async function slaEmailOp(m) {
+    const email = (emailWaarden[m.id] || '').trim()
+    await supabase.from('planning_links').update({ email: email || null }).eq('id', m.id)
+    setEmailBewerken(e => ({ ...e, [m.id]: false }))
+    onVervers()
+  }
+
+  async function toggleMeldingen(m) {
+    const nieuw = !(m.meldingen ?? true)
+    await supabase.from('planning_links').update({ meldingen: nieuw }).eq('id', m.id)
+    onVervers()
+  }
 
   async function voegToe() {
     const naam = window.prompt('Naam van de medewerker:')
@@ -280,7 +301,7 @@ export function MedewerkersView({ medewerkers, onVervers, onTerug }) {
     window.crypto.getRandomValues(bytes)
     const token = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')
     const kleur = KLEUREN_OPTIES[medewerkers.length % KLEUREN_OPTIES.length]
-    await supabase.from('planning_links').insert({ naam: naam.trim(), token, kleur })
+    await supabase.from('planning_links').insert({ naam: naam.trim(), token, kleur, meldingen: true })
     onVervers()
   }
 
@@ -319,37 +340,93 @@ export function MedewerkersView({ medewerkers, onVervers, onTerug }) {
           <div className="leeg"><p>Nog geen medewerkers.<br />Klik op <strong>+ Medewerker</strong> om te beginnen.</p></div>
         ) : (
           <div className="bon-lijst">
-            {medewerkers.map(m => (
-              <div key={m.id} className="klant-kaart" style={{ gap: 10, flexWrap: 'wrap' }}>
-                <div style={{ width: 14, height: 14, borderRadius: '50%', background: m.kleur || '#C9A227', flexShrink: 0, marginTop: 2 }} />
-                <div className="klant-info" style={{ flex: 1, minWidth: 0 }}>
-                  <div className="klant-naam">{m.naam}</div>
-                  <div className="klant-adres" style={{ fontFamily: 'monospace', fontSize: 11, wordBreak: 'break-all' }}>
-                    {typeof window !== 'undefined' ? `${window.location.origin}/planning/${m.token}` : `/planning/${m.token}`}
+            {medewerkers.map(m => {
+              const meldingenAan = m.meldingen ?? true
+              return (
+                <div key={m.id} className="klant-kaart" style={{ gap: 10, flexWrap: 'wrap' }}>
+                  <div style={{ width: 14, height: 14, borderRadius: '50%', background: m.kleur || '#C9A227', flexShrink: 0, marginTop: 2 }} />
+                  <div className="klant-info" style={{ flex: 1, minWidth: 0 }}>
+                    <div className="klant-naam">{m.naam}</div>
+                    <div className="klant-adres" style={{ fontFamily: 'monospace', fontSize: 11, wordBreak: 'break-all' }}>
+                      {typeof window !== 'undefined' ? `${window.location.origin}/planning/${m.token}` : `/planning/${m.token}`}
+                    </div>
+
+                    {/* PIN rij */}
+                    <div style={{ marginTop: 4, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {m.pin ? (
+                        <>
+                          <span style={{ color: '#389E0D' }}>🔒</span>
+                          <span style={{ fontFamily: 'monospace', letterSpacing: pinZichtbaar[m.id] ? 2 : 1, color: '#555' }}>
+                            {pinZichtbaar[m.id] ? m.pin : '••••'}
+                          </span>
+                          <button onClick={() => togglePin(m.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, padding: '0 2px', color: '#888' }} title={pinZichtbaar[m.id] ? 'Verberg PIN' : 'Toon PIN'}>
+                            {pinZichtbaar[m.id] ? '🙈' : '👁️'}
+                          </button>
+                        </>
+                      ) : (
+                        <span style={{ color: '#aaa' }}>⚠️ Nog geen PIN</span>
+                      )}
+                    </div>
+
+                    {/* E-mail + meldingen rij */}
+                    <div style={{ marginTop: 6, fontSize: 12, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span style={{ color: '#888' }}>✉️</span>
+                      {emailBewerken[m.id] ? (
+                        <>
+                          <input
+                            type="email"
+                            value={emailWaarden[m.id] || ''}
+                            onChange={e => setEmailWaarden(v => ({ ...v, [m.id]: e.target.value }))}
+                            onKeyDown={e => { if (e.key === 'Enter') slaEmailOp(m); if (e.key === 'Escape') setEmailBewerken(v => ({ ...v, [m.id]: false })) }}
+                            placeholder="e-mailadres"
+                            autoFocus
+                            style={{ fontSize: 12, padding: '2px 6px', border: '1px solid #C9A227', borderRadius: 4, width: 180 }}
+                          />
+                          <button onClick={() => slaEmailOp(m)} style={{ background: '#C9A227', color: '#fff', border: 'none', borderRadius: 4, padding: '2px 8px', fontSize: 11, cursor: 'pointer' }}>Opslaan</button>
+                          <button onClick={() => setEmailBewerken(v => ({ ...v, [m.id]: false }))} style={{ background: 'none', border: 'none', color: '#aaa', cursor: 'pointer', fontSize: 11 }}>Annuleer</button>
+                        </>
+                      ) : (
+                        <>
+                          <span
+                            onClick={() => startEmailBewerken(m)}
+                            style={{ color: m.email ? '#333' : '#bbb', cursor: 'pointer', textDecoration: 'underline dotted' }}
+                            title="E-mailadres bewerken"
+                          >
+                            {m.email || 'Geen e-mail'}
+                          </span>
+                          {m.email && (
+                            <span
+                              onClick={() => toggleMeldingen(m)}
+                              title={meldingenAan ? 'Meldingen uitschakelen' : 'Meldingen inschakelen'}
+                              style={{ cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', gap: 4, color: meldingenAan ? '#389E0D' : '#aaa', fontSize: 11 }}
+                            >
+                              <span style={{
+                                display: 'inline-block', width: 28, height: 16, borderRadius: 8,
+                                background: meldingenAan ? '#389E0D' : '#ccc',
+                                position: 'relative', transition: 'background 0.2s', flexShrink: 0
+                              }}>
+                                <span style={{
+                                  position: 'absolute', top: 2, left: meldingenAan ? 14 : 2,
+                                  width: 12, height: 12, borderRadius: '50%', background: '#fff',
+                                  transition: 'left 0.2s'
+                                }} />
+                              </span>
+                              {meldingenAan ? 'Meldingen aan' : 'Meldingen uit'}
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
-                  <div style={{ marginTop: 4, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {m.pin ? (
-                      <>
-                        <span style={{ color: '#389E0D' }}>🔒</span>
-                        <span style={{ fontFamily: 'monospace', letterSpacing: pinZichtbaar[m.id] ? 2 : 1, color: '#555' }}>
-                          {pinZichtbaar[m.id] ? m.pin : '••••'}
-                        </span>
-                        <button onClick={() => togglePin(m.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, padding: '0 2px', color: '#888' }} title={pinZichtbaar[m.id] ? 'Verberg PIN' : 'Toon PIN'}>
-                          {pinZichtbaar[m.id] ? '🙈' : '👁️'}
-                        </button>
-                      </>
-                    ) : (
-                      <span style={{ color: '#aaa' }}>⚠️ Nog geen PIN</span>
-                    )}
+
+                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                    <button className="btn btn-licht" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => stelPinIn(m)} title="PIN wijzigen">🔑 PIN</button>
+                    <button className="btn btn-licht" style={{ padding: '4px 10px', fontSize: 13 }} onClick={() => kopieer(m.token)} title="Link kopiëren">📋</button>
+                    <button className="btn-verwijder" onClick={() => verwijder(m.id)}>×</button>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                  <button className="btn btn-licht" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => stelPinIn(m)} title="PIN wijzigen">🔑 PIN</button>
-                  <button className="btn btn-licht" style={{ padding: '4px 10px', fontSize: 13 }} onClick={() => kopieer(m.token)} title="Link kopiëren">📋</button>
-                  <button className="btn-verwijder" onClick={() => verwijder(m.id)}>×</button>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
