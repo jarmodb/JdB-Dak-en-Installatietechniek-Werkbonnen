@@ -436,15 +436,6 @@ export default function WerkbonApp() {
 
   // Werkdagen
   function voegWerkdagToe() { setWerkdagen(w => [...w, { datum: vandaag(), omschrijving: '', uren: '', medewerker_id: '' }]) }
-  function wisselWerkdagMedewerker(idx) {
-    setWerkdagen(w => w.map((item, i) => {
-      if (i !== idx) return item
-      const huidig = item.medewerker_id || ''
-      const medIdx = medewerkers.findIndex(m => m.id === huidig)
-      const volgend = medewerkers[(medIdx + 1) % (medewerkers.length + 1)]
-      return { ...item, medewerker_id: volgend ? volgend.id : '' }
-    }))
-  }
   function updateWerkdag(idx, key, val) { setWerkdagen(w => w.map((item, i) => i === idx ? { ...item, [key]: val } : item)) }
   function verwijderWerkdag(idx) { setWerkdagen(w => w.filter((_, i) => i !== idx)) }
 
@@ -454,7 +445,7 @@ export default function WerkbonApp() {
   function verwijderMateriaal(idx) { setMaterialen(m => m.filter((_, i) => i !== idx)) }
 
   // Ritten
-  function voegRitToe() { setRitten(r => [...r, { datum: vandaag(), startadres: '', reistijd: '', kilometers: '' }]) }
+  function voegRitToe() { setRitten(r => [...r, { datum: vandaag(), startadres: '', reistijd: '', kilometers: '', medewerker_id: '' }]) }
   function updateRit(idx, key, val) { setRitten(r => r.map((item, i) => i === idx ? { ...item, [key]: val } : item)) }
   function verwijderRit(idx) { setRitten(r => r.filter((_, i) => i !== idx)) }
 
@@ -517,7 +508,10 @@ export default function WerkbonApp() {
       klant_naam: formulier.klant_naam,
       klant_adres: [formulier.klant_straat, formulier.klant_huisnummer].filter(Boolean).join(' '),
       klant_postcode: formulier.klant_postcode, klant_plaats: formulier.klant_plaats, klant_tel: formulier.klant_tel, klant_email: formulier.klant_email,
-      ritten: ritten.map(({ _bezig, ...r }) => ({ ...r, reistijd: parseFloat(r.reistijd) || 0, kilometers: parseFloat(r.kilometers) || 0 })),
+      ritten: ritten.map(({ _bezig, ...r }) => {
+        const med = medewerkers.find(m => m.id === r.medewerker_id)
+        return { ...r, reistijd: parseFloat(r.reistijd) || 0, kilometers: parseFloat(r.kilometers) || 0, medewerker_id: r.medewerker_id || null, medewerker_naam: med?.naam || null, medewerker_kleur: med?.kleur || null }
+      }),
       omschrijving: formulier.omschrijving, uren: totalen.totalUren, uurtarief: parseFloat(formulier.uurtarief) || 0,
       werkdagen: geldigeWerkdagen, materialen: geldigeMat, fotos,
       notities: formulier.notities, arbeid: totalen.arbeid, mat_totaal: totalen.mat_totaal,
@@ -725,28 +719,22 @@ export default function WerkbonApp() {
             <div className="sectie-titel">Gewerkte dagen</div>
             <div className="werkdag-labels"><span className="mat-label" style={{ textAlign: 'left' }}>Datum</span><span className="mat-label" style={{ textAlign: 'left' }}>Omschrijving</span><span className="mat-label">Uren</span>{medewerkers.length > 0 && <span />}<span /></div>
             <div className="werkdag-lijst">
-              {werkdagen.map((w, i) => {
-                const med = medewerkers.find(m => m.id === w.medewerker_id)
-                return (
-                  <div key={i} className={`werkdag-rij${medewerkers.length > 0 ? ' met-med' : ''}`}>
+              {werkdagen.map((w, i) => (
+                <div key={i} className="werkdag-item">
+                  <div className="werkdag-rij">
                     <input type="date" value={w.datum} onChange={e => updateWerkdag(i, 'datum', e.target.value)} />
                     <input type="text" value={w.omschrijving} onChange={e => updateWerkdag(i, 'omschrijving', e.target.value)} placeholder="Wat gedaan?" />
                     <input type="number" value={w.uren} onChange={e => updateWerkdag(i, 'uren', e.target.value)} placeholder="0" min="0" step="0.5" style={{ textAlign: 'center' }} />
-                    {medewerkers.length > 0 && (
-                      <button
-                        type="button"
-                        className="werkdag-med-knop"
-                        onClick={() => wisselWerkdagMedewerker(i)}
-                        title={med ? med.naam : 'Medewerker toewijzen'}
-                        style={{ background: med ? (med.kleur || '#C9A227') : '#e0e0e0' }}
-                      >
-                        {med ? med.naam.charAt(0).toUpperCase() : '?'}
-                      </button>
-                    )}
                     <button className="btn-verwijder" onClick={() => verwijderWerkdag(i)}>×</button>
                   </div>
-                )
-              })}
+                  {medewerkers.length > 0 && (
+                    <select className="med-select" value={w.medewerker_id || ''} onChange={e => updateWerkdag(i, 'medewerker_id', e.target.value)}>
+                      <option value="">— Niemand —</option>
+                      {medewerkers.map(m => <option key={m.id} value={m.id}>{m.naam}</option>)}
+                    </select>
+                  )}
+                </div>
+              ))}
             </div>
             <button className="btn-toevoegen" onClick={voegWerkdagToe}>+ Dag toevoegen</button>
             {totalen.totalUren > 0 && <div className="uren-totaal">Totaal: <strong>{totalen.totalUren} uur</strong></div>}
@@ -777,6 +765,12 @@ export default function WerkbonApp() {
                     <input type="number" value={r.kilometers || ''} onChange={e => updateRit(i, 'kilometers', e.target.value)} placeholder="0" min="0" step="0.1" />
                   </div>
                 </div>
+                {medewerkers.length > 0 && (
+                  <select className="med-select" value={r.medewerker_id || ''} onChange={e => updateRit(i, 'medewerker_id', e.target.value)}>
+                    <option value="">— Niemand —</option>
+                    {medewerkers.map(m => <option key={m.id} value={m.id}>{m.naam}</option>)}
+                  </select>
+                )}
               </div>
             ))}
             <button className="btn-toevoegen" onClick={voegRitToe}>+ Rit toevoegen</button>
@@ -1047,7 +1041,15 @@ function BonAfdruk({ bon }) {
                 {bon.ritten.map((r, i) => (
                   <tr key={i}>
                     <td>{r.datum ? `${r.datum.split('-')[2]}-${r.datum.split('-')[1]}-${r.datum.split('-')[0]}` : ''}</td>
-                    <td>{r.startadres || '–'}</td>
+                    <td>
+                      {r.startadres || '–'}
+                      {r.medewerker_naam && (
+                        <span style={{ marginLeft: 8, display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, background: (r.medewerker_kleur || '#C9A227') + '22', color: r.medewerker_kleur || '#C9A227', border: `1px solid ${(r.medewerker_kleur || '#C9A227')}55`, borderRadius: 10, padding: '1px 7px', fontWeight: 600, verticalAlign: 'middle' }}>
+                          <span style={{ width: 7, height: 7, borderRadius: '50%', background: r.medewerker_kleur || '#C9A227', display: 'inline-block' }} />
+                          {r.medewerker_naam}
+                        </span>
+                      )}
+                    </td>
                     <td style={{textAlign:'center'}}>{r.reistijd > 0 ? `${r.reistijd} min` : '–'}</td>
                     <td style={{textAlign:'right'}}>{r.kilometers > 0 ? `${r.kilometers} km` : '–'}</td>
                   </tr>

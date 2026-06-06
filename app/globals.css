@@ -299,39 +299,29 @@ textarea { resize: vertical; min-height: 80px; }
 /* === WERKDAGEN === */
 .werkdag-labels {
   display: grid;
-  grid-template-columns: 130px 1fr 70px 32px 32px;
+  grid-template-columns: 130px 1fr 70px 32px;
   gap: 6px;
   margin-bottom: 4px;
 }
 .werkdag-lijst { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.werkdag-item { display: flex; flex-direction: column; gap: 4px; }
 .werkdag-rij {
   display: grid;
   grid-template-columns: 130px 1fr 70px 32px;
-}
-.werkdag-rij.met-med {
-  grid-template-columns: 130px 1fr 70px 32px 32px;
   gap: 6px;
   align-items: center;
 }
 .werkdag-rij input { padding: 8px 10px; }
-.werkdag-med-knop {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: none;
+.med-select {
+  font-size: 12px;
+  padding: 5px 8px;
+  border: 1px solid var(--grens);
+  border-radius: 6px;
+  background: var(--grijs-licht);
+  color: var(--tekst);
   cursor: pointer;
-  font-size: 11px;
-  font-weight: 700;
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  transition: transform .15s, opacity .15s;
-  justify-self: center;
-  align-self: center;
+  width: 100%;
 }
-.werkdag-med-knop:hover { opacity: .8; transform: scale(1.1); }
 .uren-totaal {
   text-align: right;
   font-size: 13px;
@@ -797,9 +787,8 @@ tr:last-child td { border-bottom: none; }
 
 /* === RESPONSIVE === */
 @media (max-width: 500px) {
-  .werkdag-labels { grid-template-columns: 110px 1fr 60px 30px 30px; }
+  .werkdag-labels { grid-template-columns: 110px 1fr 60px 30px; }
   .werkdag-rij { grid-template-columns: 110px 1fr 60px 30px; }
-  .werkdag-rij.met-med { grid-template-columns: 110px 1fr 60px 30px 30px; }
   .materiaal-rij { grid-template-columns: 1fr 60px 80px 30px; }
   .mat-labels { grid-template-columns: 1fr 60px 80px 30px; }
   .detail-acties { gap: 6px; }
