@@ -549,6 +549,94 @@ tr:last-child td { border-bottom: none; }
 .btn-ms-header.ingelogd { border-color: var(--goud); color: var(--goud); }
 .btn-ms-header:hover { background: rgba(255,255,255,.1); }
 
+.btn-changelog-header {
+  background: none;
+  border: 1px solid rgba(255,255,255,.3);
+  color: white;
+  padding: 6px 9px;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  line-height: 1;
+}
+.btn-changelog-header:hover { background: rgba(255,255,255,.1); }
+
+/* === CHANGELOG MODAL === */
+.changelog-modal {
+  max-width: 500px;
+  width: 92vw;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+.changelog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--grens);
+}
+.changelog-header h3 { margin: 0; font-size: 17px; }
+.modal-sluit {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: var(--grijs);
+  padding: 4px 8px;
+  border-radius: 4px;
+  line-height: 1;
+}
+.modal-sluit:hover { background: var(--grijs-licht); }
+.changelog-inhoud {
+  overflow-y: auto;
+  padding: 16px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.changelog-versie-kop {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.changelog-versie-nr {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--tekst);
+}
+.changelog-versie-datum {
+  font-size: 12px;
+  color: var(--grijs);
+}
+.changelog-items {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.changelog-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.changelog-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
 .ms-login-blok { text-align: center; padding: 16px; background: var(--grijs-licht); border-radius: 8px; }
 .ms-login-blok p { font-size: 13px; color: var(--grijs); margin-bottom: 12px; }
 .btn-ms { background: #0078d4; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }

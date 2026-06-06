@@ -7,6 +7,52 @@ import { msLogin, msLogout, msGetAccount, uploadFotoNaarOneDrive, uploadPdfNaarO
 import PlanningView from '@/components/PlanningView'
 import TodoView from '@/components/TodoView'
 
+const CHANGELOG = [
+  {
+    versie: 'v1.3', datum: '6 juni 2026', items: [
+      { type: 'nieuw', tekst: 'Automatisch PDF opslaan naar OneDrive bij elke opgeslagen werkbon' },
+      { type: 'nieuw', tekst: 'Foto\'s opgeslagen in dezelfde OneDrive-map als de PDF' },
+      { type: 'nieuw', tekst: 'Taken afvinken via persoonlijke planningslink' },
+      { type: 'verbeterd', tekst: 'Bewerken als hoofdknop op werkbon; PDF-knop kleiner' },
+      { type: 'verbeterd', tekst: '"Exporteer naar Digiboox" knop verwijderd' },
+    ]
+  },
+  {
+    versie: 'v1.2', datum: '5 juni 2026', items: [
+      { type: 'nieuw', tekst: 'Meerdere reisritten per werkbon met automatische km-berekening' },
+      { type: 'nieuw', tekst: 'Taken-tabblad met prioriteit en medewerker-koppeling' },
+      { type: 'nieuw', tekst: 'Meerdere medewerkers per afspraak in planning' },
+      { type: 'nieuw', tekst: 'Weeknummers in maandoverzicht' },
+      { type: 'nieuw', tekst: 'Mailadres bij werkbonnen en klanten' },
+      { type: 'nieuw', tekst: 'Werkbon koppelen aan afspraak vult adres en omschrijving automatisch in' },
+      { type: 'nieuw', tekst: 'Naam medewerker zichtbaar als tabbladtitel in browser' },
+      { type: 'nieuw', tekst: 'Taken zichtbaar in persoonlijke planningslink' },
+      { type: 'opgelost', tekst: 'Taalfout "afspraaken" in dag- en weekplanning' },
+      { type: 'opgelost', tekst: 'Huisnummer stond niet in het juiste veld bij klant overnemen' },
+      { type: 'opgelost', tekst: 'Postcode automatisch invullen werkte niet correct' },
+    ]
+  },
+  {
+    versie: 'v1.1', datum: 'april 2026', items: [
+      { type: 'nieuw', tekst: 'Planning met week-, maand- en dagweergave' },
+      { type: 'nieuw', tekst: 'Persoonlijke planningslinks per medewerker' },
+      { type: 'nieuw', tekst: 'Afspraken zichtbaar in maandoverzicht' },
+    ]
+  },
+  {
+    versie: 'v1.0', datum: 'maart 2026', items: [
+      { type: 'nieuw', tekst: 'Werkbonnen aanmaken, bewerken en verwijderen' },
+      { type: 'nieuw', tekst: 'Klanten- en productenbestand' },
+      { type: 'nieuw', tekst: 'Uren, materialen en reiskosten registreren' },
+      { type: 'nieuw', tekst: 'PDF afdrukken en factuurstatus bijhouden' },
+      { type: 'nieuw', tekst: 'Real-time synchronisatie tussen apparaten' },
+      { type: 'nieuw', tekst: 'Installeerbaar als app op telefoon' },
+    ]
+  },
+]
+
+const CHANGELOG_KLEUREN = { nieuw: { bg: '#f0fdf4', kleur: '#389E0D', rand: '#b7eb8f', label: 'Nieuw' }, verbeterd: { bg: '#fffbe6', kleur: '#C9A227', rand: '#ffe58f', label: 'Verbeterd' }, opgelost: { bg: '#fff1f0', kleur: '#D4380D', rand: '#ffccc7', label: 'Opgelost' } }
+
 const WERK_TYPES = ['Gas', 'Water', 'Verwarming', 'Sanitair', 'Riolering', 'Dakbedekking', 'Zinkwerken', 'Graafwerkzaamheden']
 const EENHEDEN = ['stuk', 'm²', 'meter', 'liter', 'kg', 'uur', 'set', 'rol', 'doos', 'pak']
 
@@ -258,6 +304,7 @@ export default function WerkbonApp() {
   const [msIngelogd, setMsIngelogd] = useState(false)
   const [fotoUploadBezig, setFotoUploadBezig] = useState(false)
   const [pdfStatus, setPdfStatus] = useState(null) // null | 'bezig' | 'klaar' | 'fout'
+  const [changelogOpen, setChangelogOpen] = useState(false)
   const fotoInputRef = useRef(null)
   const bonPrintRef = useRef(null)
   const autoSavePdfRef = useRef(false)
@@ -540,9 +587,14 @@ export default function WerkbonApp() {
             {view === 'detail' && huidigeBon?.klant_naam && <span>{huidigeBon.klant_naam}</span>}
           </div>
         </div>
-        <button className={`btn-ms-header ${msIngelogd ? 'ingelogd' : ''}`} onClick={msIngelogd ? handleMsLogout : handleMsLogin} title={msIngelogd ? 'Uitloggen bij Microsoft' : 'Inloggen voor foto-upload'}>
-          {msIngelogd ? '☁️ MS ✓' : '☁️ MS'}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button className={`btn-ms-header ${msIngelogd ? 'ingelogd' : ''}`} onClick={msIngelogd ? handleMsLogout : handleMsLogin} title={msIngelogd ? 'Uitloggen bij Microsoft' : 'Inloggen voor foto-upload'}>
+            {msIngelogd ? '☁️ MS ✓' : '☁️ MS'}
+          </button>
+          <button className="btn-changelog-header" onClick={() => setChangelogOpen(true)} title="Wat is er nieuw?">
+            🆕
+          </button>
+        </div>
       </header>
 
       {/* ── OVERZICHT ── */}
@@ -813,6 +865,39 @@ export default function WerkbonApp() {
             <div className="modal-acties">
               <button className="btn btn-licht" onClick={() => setVerwijderModal(false)}>Annuleer</button>
               <button className="btn btn-gevaar" onClick={verwijderWerkbon}>Verwijderen</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── CHANGELOG MODAL ── */}
+      {changelogOpen && (
+        <div className="modal-overlay" onClick={() => setChangelogOpen(false)}>
+          <div className="modal changelog-modal" onClick={e => e.stopPropagation()}>
+            <div className="changelog-header">
+              <h3>Wat is er nieuw?</h3>
+              <button className="modal-sluit" onClick={() => setChangelogOpen(false)}>✕</button>
+            </div>
+            <div className="changelog-inhoud">
+              {CHANGELOG.map(v => (
+                <div key={v.versie} className="changelog-versie">
+                  <div className="changelog-versie-kop">
+                    <span className="changelog-versie-nr">{v.versie}</span>
+                    <span className="changelog-versie-datum">{v.datum}</span>
+                  </div>
+                  <ul className="changelog-items">
+                    {v.items.map((item, i) => {
+                      const stijl = CHANGELOG_KLEUREN[item.type] || CHANGELOG_KLEUREN.nieuw
+                      return (
+                        <li key={i} className="changelog-item">
+                          <span className="changelog-badge" style={{ background: stijl.bg, color: stijl.kleur, border: `1px solid ${stijl.rand}` }}>{stijl.label}</span>
+                          <span>{item.tekst}</span>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              ))}
             </div>
           </div>
         </div>
