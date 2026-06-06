@@ -133,10 +133,13 @@ export default function MedewerkerWerkbonView({ medewerker, view, huidigeBon, on
     for (const bestand of bestanden) {
       try {
         const pad = `${formulier.nummer || 'concept'}/${Date.now()}_${bestand.name}`
-        const { error } = await supabase.storage.from('werkbon-fotos').upload(pad, bestand, { upsert: true })
-        if (error) throw error
-        const { data: urlData } = supabase.storage.from('werkbon-fotos').getPublicUrl(pad)
-        setFotos(f => [...f, { naam: bestand.name, url: urlData.publicUrl, datum: new Date().toISOString() }])
+        const formData = new FormData()
+        formData.append('bestand', bestand)
+        formData.append('pad', pad)
+        const res = await fetch('/api/foto-upload', { method: 'POST', body: formData })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Upload mislukt')
+        setFotos(f => [...f, { naam: bestand.name, url: data.url, datum: new Date().toISOString() }])
       } catch (err) { alert(`Upload mislukt: ${err.message}`) }
     }
     setFotoUploadBezig(false)
