@@ -854,14 +854,6 @@ export default function OfferteView({ klanten, producten, onWerkbonAangemaakt, m
     onWerkbonAangemaakt(werkbonData)
   }
 
-  async function blobNaarBase64(blob) {
-    return new Promise((resolve) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(reader.result.split(',')[1])
-      reader.readAsDataURL(blob)
-    })
-  }
-
   async function stuurEmail(email, bericht) {
     if (!huidig) return
     setEmailBezig(true)
@@ -887,23 +879,27 @@ export default function OfferteView({ klanten, producten, onWerkbonAangemaakt, m
         }
       }
 
-      // Haal AV PDF op client-side op en stuur als base64 mee
+      // Haal AV PDF op via server-side proxy (service key, omzeilt CORS/bucket-permissies)
       let avPdfBase64 = null
       if (instellingen.av_url) {
         try {
-          const avRes = await fetch(instellingen.av_url)
-          if (avRes.ok) avPdfBase64 = await blobNaarBase64(await avRes.blob())
-        } catch {}
-        // Fallback via Supabase storage
-        if (!avPdfBase64) {
-          try {
-            const match = instellingen.av_url.match(/\/object\/public\/werkbon-fotos\/([^?]+)/)
-            const pad = match?.[1]
-            if (pad) {
-              const { data: blob } = await supabase.storage.from('werkbon-fotos').download(decodeURIComponent(pad))
-              if (blob) avPdfBase64 = await blobNaarBase64(blob)
+          const match = instellingen.av_url.match(/\/object\/public\/werkbon-fotos\/([^?]+)/)
+          const pad = match?.[1]
+          if (pad) {
+            const res = await fetch('/api/haal-bestand', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ pad: decodeURIComponent(pad) }),
+            })
+            if (res.ok) {
+              const { base64 } = await res.json()
+              avPdfBase64 = base64 || null
+            } else {
+              console.warn('AV PDF proxy mislukt:', await res.text())
             }
-          } catch {}
+          }
+        } catch (e) {
+          console.warn('AV PDF ophalen mislukt:', e)
         }
       }
 
