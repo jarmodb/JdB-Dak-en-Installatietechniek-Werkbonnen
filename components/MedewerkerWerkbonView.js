@@ -42,7 +42,11 @@ export default function MedewerkerWerkbonView({ medewerker }) {
 
     function handlePop(e) {
       const s = e.state
-      if (!s || s.tab) return  // tab-wisseling afhandelen in parent
+      if (!s || s.tab) {
+        // Terug naar tab-niveau: toon de lijst
+        setView('lijst')
+        return
+      }
       if (s.medView === 'detail' && s.bon) { setHuidigeBon(s.bon); setView('detail') }
       else if (s.medView === 'formulier') { setView('formulier') }
       else { setView('lijst') }

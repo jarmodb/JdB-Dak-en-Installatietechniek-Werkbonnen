@@ -230,7 +230,7 @@ export default function PlanningDeelPage() {
         <TakenTab medewerker={medewerker} todos={todos} setTodos={setTodos} />
       )}
       {actieveTab === 'werkbonnen' && (
-        <MedewerkerWerkbonView medewerker={medewerker} />
+        <MedewerkerWerkbonView key="werkbonnen" medewerker={medewerker} />
       )}
 
       {/* Navigatiebalk */}
