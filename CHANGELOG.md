@@ -8,11 +8,15 @@ Alle wijzigingen per versie worden hier bijgehouden.
 
 ### Nieuw
 - **Medewerker login (PIN)**: elke medewerker logt in via hun persoonlijke link met een 4-cijferige PIN.
-- **Werkbonnen voor medewerkers**: na inloggen kunnen medewerkers werkbonnen aanmaken en bewerken. Ze zien alleen hun eigen werkbonnen.
+- **Werkbonnen voor medewerkers**: na inloggen kunnen medewerkers werkbonnen invullen. Ze zien alleen hun toegewezen werkbonnen.
+- **Ritten in medewerkerlink**: medewerkers kunnen ritten toevoegen met automatische km-berekening. Hun naam staat automatisch op de rit.
+- **Foto's in medewerkerlink**: foto's uploaden via Supabase Storage (geen Microsoft login nodig).
+- **Producten in medewerkerlink**: dropdown met productenlijst bij materialen — naam en eenheid zichtbaar, prijzen niet.
 - **Navigatie voor medewerkers**: tabbladen Planning, Taken en Werkbonnen in de persoonlijke link.
 - **Teller op Taken-tab**: rood bolletje toont het aantal openstaande taken.
 
 ### Verbeterd
+- Medewerker wordt automatisch ingevuld bij werkdagen én ritten die zij toevoegen.
 - Medewerkersbeheer toont of er een PIN is ingesteld.
 - Medewerkers zonder PIN krijgen direct toegang (backwards compat.).
 

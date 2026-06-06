@@ -1,9 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 
-function euro(n) { return '€ ' + Number(n || 0).toFixed(2).replace('.', ',') }
 function datumNL(iso) { if (!iso) return ''; const [y, m, d] = iso.split('-'); return `${d}-${m}-${y}` }
 function vandaag() { return new Date().toISOString().split('T')[0] }
 
@@ -15,12 +14,8 @@ async function genNummer() {
   return `${prefix}${String((nummers.length ? Math.max(...nummers) : 0) + 1).padStart(3, '0')}`
 }
 
-function leegFormulier(medewerker) {
-  return {
-    nummer: '', datum: vandaag(),
-    klant_naam: '', klant_straat: '', klant_huisnummer: '', klant_postcode: '', klant_plaats: '', klant_tel: '', klant_email: '',
-    omschrijving: '', notities: '',
-  }
+function leegFormulier() {
+  return { nummer: '', datum: vandaag(), klant_naam: '', klant_straat: '', klant_huisnummer: '', klant_postcode: '', klant_plaats: '', klant_tel: '', klant_email: '', omschrijving: '', notities: '' }
 }
 
 export default function MedewerkerWerkbonView({ medewerker, view, huidigeBon, onOpenDetail, onBewerken, onOpgeslagen, onTerugNaarLijst, onTerugNaarDetail }) {
@@ -28,21 +23,25 @@ export default function MedewerkerWerkbonView({ medewerker, view, huidigeBon, on
   const [laden, setLaden] = useState(true)
   const [bewerkModus, setBewerkModus] = useState(false)
   const [bezig, setBezig] = useState(false)
+  const [producten, setProducten] = useState([])
 
-  // Formulier state
   const [formulier, setFormulier] = useState(leegFormulier())
   const [werkdagen, setWerkdagen] = useState([])
   const [materialen, setMaterialen] = useState([])
+  const [ritten, setRitten] = useState([])
+  const [fotos, setFotos] = useState([])
   const [postcodeBezig, setPostcodeBezig] = useState(false)
+  const [fotoUploadBezig, setFotoUploadBezig] = useState(false)
+  const fotoInputRef = useRef(null)
 
   useEffect(() => {
     laadWerkbonnen()
+    laadProducten()
   }, [])
 
   async function laadWerkbonnen() {
     setLaden(true)
     const { data } = await supabase.from('werkbonnen').select('*').order('aangemaakt', { ascending: false })
-    // Toon werkbonnen die expliciet zijn toegewezen OF waar medewerker in werkdagen/ritten staat
     const eigen = (data || []).filter(b =>
       (b.medewerkers || []).includes(medewerker.id) ||
       (b.werkdagen || []).some(w => w.medewerker_id === medewerker.id) ||
@@ -52,6 +51,11 @@ export default function MedewerkerWerkbonView({ medewerker, view, huidigeBon, on
     setLaden(false)
   }
 
+  async function laadProducten() {
+    const { data } = await supabase.from('producten').select('id, naam, eenheid').order('naam')
+    setProducten(data || [])
+  }
+
   function setVeld(k, v) { setFormulier(f => ({ ...f, [k]: v })) }
 
   async function adresOpzoeken(postcode, huisnummer) {
@@ -59,25 +63,95 @@ export default function MedewerkerWerkbonView({ medewerker, view, huidigeBon, on
     if (!pc || pc.length < 6) return
     setPostcodeBezig(true)
     try {
-      const res = await fetch(`https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?q=${encodeURIComponent(pc + ' ' + (huisnummer || ''))}&fl=straatnaam,woonplaatsnaam,huisnummer&rows=1&fq=type:adres`)
+      const res = await fetch(`https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?q=${encodeURIComponent(pc + ' ' + (huisnummer || ''))}&fl=straatnaam,woonplaatsnaam&rows=1&fq=type:adres`)
       const json = await res.json()
       const doc = json?.response?.docs?.[0]
-      if (doc) {
-        if (doc.straatnaam) setVeld('klant_straat', doc.straatnaam)
-        if (doc.woonplaatsnaam) setVeld('klant_plaats', doc.woonplaatsnaam)
-      }
-    } catch { /* stil falen */ }
+      if (doc?.straatnaam) setVeld('klant_straat', doc.straatnaam)
+      if (doc?.woonplaatsnaam) setVeld('klant_plaats', doc.woonplaatsnaam)
+    } catch { }
     setPostcodeBezig(false)
   }
 
+  // ── Werkdagen ──
+  function voegWerkdagToe() {
+    setWerkdagen(w => [...w, { datum: vandaag(), omschrijving: '', uren: '', medewerker_id: medewerker.id, medewerker_naam: medewerker.naam, medewerker_kleur: medewerker.kleur || '#C9A227' }])
+  }
+  function updateWerkdag(idx, key, val) { setWerkdagen(w => w.map((item, i) => i === idx ? { ...item, [key]: val } : item)) }
+  function verwijderWerkdag(idx) { setWerkdagen(w => w.filter((_, i) => i !== idx)) }
+
+  // ── Materialen ──
+  function voegMateriaalToe() { setMaterialen(m => [...m, { omschrijving: '', aantal: 1, eenheid: 'stuk', prijs: 0 }]) }
+  function updateMateriaal(idx, key, val) { setMaterialen(m => m.map((item, i) => i === idx ? { ...item, [key]: val } : item)) }
+  function verwijderMateriaal(idx) { setMaterialen(m => m.filter((_, i) => i !== idx)) }
+  function productSelecteren(idx, product) {
+    setMaterialen(m => m.map((item, i) => i === idx ? { ...item, omschrijving: product.naam, eenheid: product.eenheid || 'stuk' } : item))
+    // Prijs bewust NIET overnemen
+  }
+
+  // ── Ritten ──
+  function voegRitToe() {
+    setRitten(r => [...r, { datum: vandaag(), startadres: '', reistijd: '', kilometers: '', medewerker_id: medewerker.id, medewerker_naam: medewerker.naam, medewerker_kleur: medewerker.kleur || '#C9A227' }])
+  }
+  function updateRit(idx, key, val) { setRitten(r => r.map((item, i) => i === idx ? { ...item, [key]: val } : item)) }
+  function verwijderRit(idx) { setRitten(r => r.filter((_, i) => i !== idx)) }
+
+  async function berekenRoute(idx) {
+    const rit = ritten[idx]
+    const eindAdres = [formulier.klant_straat, formulier.klant_huisnummer, formulier.klant_postcode, formulier.klant_plaats].filter(Boolean).join(' ')
+    if (!rit.startadres?.trim() || !eindAdres.trim()) { alert('Vul eerst start- en eindadres in'); return }
+    updateRit(idx, '_bezig', true)
+    try {
+      async function geocodeer(adres) {
+        const res = await fetch(`https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?q=${encodeURIComponent(adres)}&fl=centroide_ll&rows=1`)
+        const json = await res.json()
+        const coord = json?.response?.docs?.[0]?.centroide_ll
+        if (!coord) return null
+        const [lon, lat] = coord.replace('POINT(', '').replace(')', '').split(' ')
+        return { lon, lat }
+      }
+      const [start, eind] = await Promise.all([geocodeer(rit.startadres), geocodeer(eindAdres)])
+      if (!start || !eind) { alert('Adres niet gevonden'); updateRit(idx, '_bezig', false); return }
+      const routeRes = await fetch(`https://router.project-osrm.org/route/v1/driving/${start.lon},${start.lat};${eind.lon},${eind.lat}?overview=false`)
+      const routeData = await routeRes.json()
+      const afstand = routeData.routes?.[0]?.distance
+      const duur = routeData.routes?.[0]?.duration
+      if (afstand) {
+        updateRit(idx, 'kilometers', Math.round(afstand / 100) / 10)
+        updateRit(idx, 'reistijd', Math.round(duur / 60))
+      } else { alert('Route niet gevonden') }
+    } catch (e) { alert('Fout: ' + e.message) }
+    updateRit(idx, '_bezig', false)
+  }
+
+  // ── Foto's ──
+  async function handleFotoKiezen(e) {
+    const bestanden = Array.from(e.target.files)
+    if (!bestanden.length) return
+    setFotoUploadBezig(true)
+    for (const bestand of bestanden) {
+      try {
+        const pad = `${formulier.nummer || 'concept'}/${Date.now()}_${bestand.name}`
+        const { error } = await supabase.storage.from('werkbon-fotos').upload(pad, bestand, { upsert: true })
+        if (error) throw error
+        const { data: urlData } = supabase.storage.from('werkbon-fotos').getPublicUrl(pad)
+        setFotos(f => [...f, { naam: bestand.name, url: urlData.publicUrl, datum: new Date().toISOString() }])
+      } catch (err) { alert(`Upload mislukt: ${err.message}`) }
+    }
+    setFotoUploadBezig(false)
+    if (fotoInputRef.current) fotoInputRef.current.value = ''
+  }
+
+  function verwijderFoto(idx) { setFotos(f => f.filter((_, i) => i !== idx)) }
+
+  // ── Bewerken laden ──
   function bewerkWerkbon(bon) {
     setBewerkModus(true)
+    const adresM = (bon.klant_adres || '').match(/^(.*?)\s+(\d+\S*)$/)
     setFormulier({
-      nummer: bon.nummer || '',
-      datum: bon.datum || vandaag(),
+      nummer: bon.nummer || '', datum: bon.datum || vandaag(),
       klant_naam: bon.klant_naam || '',
-      klant_straat: bon.klant_straat || (bon.klant_adres || '').match(/^(.*?)\s+(\d+\S*)$/)?.[1] || bon.klant_adres || '',
-      klant_huisnummer: bon.klant_huisnummer || (bon.klant_adres || '').match(/^(.*?)\s+(\d+\S*)$/)?.[2] || '',
+      klant_straat: adresM ? adresM[1] : (bon.klant_adres || ''),
+      klant_huisnummer: adresM ? adresM[2] : '',
       klant_postcode: bon.klant_postcode || '',
       klant_plaats: bon.klant_plaats || '',
       klant_tel: bon.klant_tel || '',
@@ -87,9 +161,12 @@ export default function MedewerkerWerkbonView({ medewerker, view, huidigeBon, on
     })
     setWerkdagen(bon.werkdagen?.length ? bon.werkdagen : [{ datum: vandaag(), omschrijving: '', uren: '', medewerker_id: medewerker.id, medewerker_naam: medewerker.naam, medewerker_kleur: medewerker.kleur || '#C9A227' }])
     setMaterialen(bon.materialen || [])
+    setRitten(bon.ritten?.length ? bon.ritten : [])
+    setFotos(bon.fotos || [])
     onBewerken(bon)
   }
 
+  // ── Opslaan ──
   async function opslaan() {
     setBezig(true)
     const geldigeWerkdagen = werkdagen
@@ -98,19 +175,18 @@ export default function MedewerkerWerkbonView({ medewerker, view, huidigeBon, on
     const geldigeMat = materialen
       .filter(m => m.omschrijving)
       .map(m => ({ omschrijving: m.omschrijving, aantal: parseFloat(m.aantal) || 1, eenheid: m.eenheid || 'stuk', prijs: parseFloat(m.prijs) || 0 }))
+    const geldigeRitten = ritten
+      .filter(r => r.startadres || r.kilometers)
+      .map(({ _bezig, ...r }) => ({ ...r, reistijd: parseFloat(r.reistijd) || 0, kilometers: parseFloat(r.kilometers) || 0 }))
 
     const rij = {
-      nummer: formulier.nummer,
-      datum: formulier.datum,
+      nummer: formulier.nummer, datum: formulier.datum,
       klant_naam: formulier.klant_naam,
       klant_adres: [formulier.klant_straat, formulier.klant_huisnummer].filter(Boolean).join(' '),
-      klant_postcode: formulier.klant_postcode,
-      klant_plaats: formulier.klant_plaats,
-      klant_tel: formulier.klant_tel,
-      klant_email: formulier.klant_email,
+      klant_postcode: formulier.klant_postcode, klant_plaats: formulier.klant_plaats,
+      klant_tel: formulier.klant_tel, klant_email: formulier.klant_email,
       omschrijving: formulier.omschrijving,
-      werkdagen: geldigeWerkdagen,
-      materialen: geldigeMat,
+      werkdagen: geldigeWerkdagen, materialen: geldigeMat, ritten: geldigeRitten, fotos,
       notities: formulier.notities,
       uren: geldigeWerkdagen.reduce((s, w) => s + w.uren, 0),
       medewerkers: bewerkModus ? (huidigeBon?.medewerkers || [medewerker.id]) : [medewerker.id],
@@ -131,50 +207,45 @@ export default function MedewerkerWerkbonView({ medewerker, view, huidigeBon, on
     onOpgeslagen(result)
   }
 
-  // Werkdagen helpers
-  function voegWerkdagToe() {
-    setWerkdagen(w => [...w, { datum: vandaag(), omschrijving: '', uren: '', medewerker_id: medewerker.id, medewerker_naam: medewerker.naam, medewerker_kleur: medewerker.kleur || '#C9A227' }])
-  }
-  function updateWerkdag(idx, key, val) { setWerkdagen(w => w.map((item, i) => i === idx ? { ...item, [key]: val } : item)) }
-  function verwijderWerkdag(idx) { setWerkdagen(w => w.filter((_, i) => i !== idx)) }
-
-  // Materialen helpers
-  function voegMateriaalToe() { setMaterialen(m => [...m, { omschrijving: '', aantal: 1, eenheid: 'stuk', prijs: '' }]) }
-  function updateMateriaal(idx, key, val) { setMaterialen(m => m.map((item, i) => i === idx ? { ...item, [key]: val } : item)) }
-  function verwijderMateriaal(idx) { setMaterialen(m => m.filter((_, i) => i !== idx)) }
-
+  // ══════════════════════════════════════════════════════════
   // ── LIJST ──
+  // ══════════════════════════════════════════════════════════
   if (view === 'lijst') {
     return (
       <div className="view-content with-bottom-nav">
-        {laden ? (
-          <div className="laden">Laden...</div>
-        ) : werkbonnen.length === 0 ? (
-          <div className="leeg"><p>Geen werkbonnen toegewezen.<br />Je leidinggevende wijst werkbonnen aan je toe.</p></div>
-        ) : (
-          <div className="bon-lijst">
-            {werkbonnen.map(bon => (
-              <div key={bon.id} className="bon-kaart" onClick={() => onOpenDetail(bon)}>
-                <div className="bon-nummer">{bon.nummer}</div>
-                <div className="bon-info">
-                  <div className="bon-klant">{bon.klant_naam || '(geen naam)'}</div>
-                  <div className="bon-meta">
-                    {datumNL(bon.datum)} &bull; {bon.omschrijving || '–'}
-                    <span className={`status-badge ${bon.gefactureerd ? 'status-gefactureerd' : 'status-open'}`} style={{ marginLeft: 6 }}>{bon.gefactureerd ? 'Gefactureerd' : 'Open'}</span>
+        {laden ? <div className="laden">Laden...</div>
+          : werkbonnen.length === 0 ? (
+            <div className="leeg"><p>Geen werkbonnen toegewezen.<br />Je leidinggevende wijst werkbonnen aan je toe.</p></div>
+          ) : (
+            <div className="bon-lijst">
+              {werkbonnen.map(bon => (
+                <div key={bon.id} className="bon-kaart" onClick={() => onOpenDetail(bon)}>
+                  <div className="bon-nummer">{bon.nummer}</div>
+                  <div className="bon-info">
+                    <div className="bon-klant">{bon.klant_naam || '(geen naam)'}</div>
+                    <div className="bon-meta">
+                      {datumNL(bon.datum)} &bull; {bon.omschrijving || '–'}
+                      <span className={`status-badge ${bon.gefactureerd ? 'status-gefactureerd' : 'status-open'}`} style={{ marginLeft: 6 }}>
+                        {bon.gefactureerd ? 'Gefactureerd' : 'Open'}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
       </div>
     )
   }
 
+  // ══════════════════════════════════════════════════════════
   // ── DETAIL ──
+  // ══════════════════════════════════════════════════════════
   if (view === 'detail' && huidigeBon) {
     const werkdg = huidigeBon.werkdagen || []
     const mat = huidigeBon.materialen || []
+    const rtn = huidigeBon.ritten || []
+    const fts = huidigeBon.fotos || []
     return (
       <div className="view-content">
         <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
@@ -230,6 +301,44 @@ export default function MedewerkerWerkbonView({ medewerker, view, huidigeBon, on
               </table>
             </div>
           )}
+          {rtn.length > 0 && (
+            <div className="bon-sectie">
+              <div className="bon-sectie-titel">Ritten</div>
+              <table>
+                <thead><tr><th>Datum</th><th>Van</th><th style={{ textAlign: 'center' }}>Tijd</th><th style={{ textAlign: 'right' }}>Km</th></tr></thead>
+                <tbody>
+                  {rtn.map((r, i) => (
+                    <tr key={i}>
+                      <td>{datumNL(r.datum)}</td>
+                      <td>
+                        {r.startadres || '–'}
+                        {r.medewerker_naam && (
+                          <span style={{ marginLeft: 8, fontSize: 11, background: (r.medewerker_kleur || '#C9A227') + '22', color: r.medewerker_kleur || '#C9A227', border: `1px solid ${(r.medewerker_kleur || '#C9A227')}55`, borderRadius: 10, padding: '1px 7px', fontWeight: 600 }}>
+                            {r.medewerker_naam}
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ textAlign: 'center' }}>{r.reistijd > 0 ? `${r.reistijd} min` : '–'}</td>
+                      <td style={{ textAlign: 'right' }}>{r.kilometers > 0 ? `${r.kilometers} km` : '–'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {fts.length > 0 && (
+            <div className="bon-sectie">
+              <div className="bon-sectie-titel">Foto's ({fts.length})</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {fts.map((f, i) => (
+                  <a key={i} href={f.url} target="_blank" rel="noreferrer"
+                    style={{ fontSize: 13, color: '#C9A227', textDecoration: 'none', background: '#fffbe6', border: '1px solid #ffe58f', borderRadius: 6, padding: '4px 10px' }}>
+                    📷 {f.naam}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
           {huidigeBon.notities && (
             <div className="bon-sectie">
               <div className="bon-sectie-titel">Notities</div>
@@ -242,14 +351,14 @@ export default function MedewerkerWerkbonView({ medewerker, view, huidigeBon, on
     )
   }
 
+  // ══════════════════════════════════════════════════════════
   // ── FORMULIER ──
+  // ══════════════════════════════════════════════════════════
   return (
     <div className="view-content form-content">
       <div className="top-acties">
         <button className="form-terug" onClick={onTerugNaarDetail}>← Terug</button>
-        <button className="btn btn-primair" onClick={opslaan} disabled={bezig}>
-          {bezig ? 'Opslaan...' : '💾 Opslaan'}
-        </button>
+        <button className="btn btn-primair" onClick={opslaan} disabled={bezig}>{bezig ? 'Opslaan...' : '💾 Opslaan'}</button>
       </div>
 
       {/* Basisinfo */}
@@ -288,9 +397,7 @@ export default function MedewerkerWerkbonView({ medewerker, view, huidigeBon, on
       {/* Omschrijving */}
       <div className="sectie">
         <div className="sectie-titel">Omschrijving</div>
-        <div className="veld">
-          <textarea value={formulier.omschrijving} onChange={e => setVeld('omschrijving', e.target.value)} placeholder="Beschrijf het uitgevoerde werk..." rows={3} style={{ width: '100%', resize: 'vertical' }} />
-        </div>
+        <textarea value={formulier.omschrijving} onChange={e => setVeld('omschrijving', e.target.value)} placeholder="Beschrijf het uitgevoerde werk..." rows={3} style={{ width: '100%', resize: 'vertical' }} />
       </div>
 
       {/* Werkdagen */}
@@ -324,37 +431,93 @@ export default function MedewerkerWerkbonView({ medewerker, view, huidigeBon, on
       <div className="sectie">
         <div className="sectie-titel">Materialen</div>
         {materialen.length > 0 && (
-          <>
-            <div className="mat-labels">
-              <span className="mat-label">Omschrijving</span>
-              <span className="mat-label" style={{ textAlign: 'center' }}>Aantal</span>
-              <span className="mat-label" style={{ textAlign: 'right' }}>Prijs</span>
-              <span />
-            </div>
-            <div className="materiaal-lijst">
-              {materialen.map((m, i) => (
-                <div key={i} className="materiaal-rij">
+          <div className="materiaal-lijst">
+            {materialen.map((m, i) => (
+              <div key={i} className="werkdag-item" style={{ gap: 6 }}>
+                {/* Producten dropdown */}
+                {producten.length > 0 && (
+                  <select className="med-select" value="" onChange={e => { const p = producten.find(x => x.id === e.target.value); if (p) productSelecteren(i, p) }}>
+                    <option value="">— Kies uit producten —</option>
+                    {producten.map(p => <option key={p.id} value={p.id}>{p.naam} ({p.eenheid || 'stuk'})</option>)}
+                  </select>
+                )}
+                <div className="materiaal-rij">
                   <input type="text" value={m.omschrijving} onChange={e => updateMateriaal(i, 'omschrijving', e.target.value)} placeholder="Omschrijving" />
                   <input type="number" value={m.aantal} onChange={e => updateMateriaal(i, 'aantal', e.target.value)} min="0" step="1" style={{ textAlign: 'center' }} />
-                  <input type="number" value={m.prijs} onChange={e => updateMateriaal(i, 'prijs', e.target.value)} placeholder="0.00" min="0" step="0.01" style={{ textAlign: 'right' }} />
+                  <select value={m.eenheid || 'stuk'} onChange={e => updateMateriaal(i, 'eenheid', e.target.value)} style={{ padding: '8px 6px', border: '1px solid var(--grens)', borderRadius: 6, fontSize: 14 }}>
+                    {['stuk', 'm²', 'meter', 'liter', 'kg', 'uur', 'set', 'rol', 'doos', 'pak'].map(e => <option key={e} value={e}>{e}</option>)}
+                  </select>
                   <button className="btn-verwijder" onClick={() => verwijderMateriaal(i)}>×</button>
                 </div>
-              ))}
-            </div>
-          </>
+              </div>
+            ))}
+          </div>
         )}
         <button className="btn-toevoegen" onClick={voegMateriaalToe}>+ Materiaal toevoegen</button>
+      </div>
+
+      {/* Ritten */}
+      <div className="sectie">
+        <div className="sectie-titel">Reistijd &amp; kilometers</div>
+        {ritten.map((r, i) => (
+          <div key={i} className="rit-kaart">
+            <div className="rit-kaart-kop">
+              <input type="date" value={r.datum || ''} onChange={e => updateRit(i, 'datum', e.target.value)} style={{ flex: 1 }} />
+              <button className="btn-verwijder" onClick={() => verwijderRit(i)}>×</button>
+            </div>
+            <div className="rit-adres-rij">
+              <input type="text" value={r.startadres || ''} onChange={e => updateRit(i, 'startadres', e.target.value)} placeholder="Startadres (bijv. jouw thuisadres)" style={{ flex: 1 }} />
+              <button className="rit-route-btn" onClick={() => berekenRoute(i)} disabled={r._bezig}>
+                {r._bezig ? '⏳' : '🗺️ Bereken'}
+              </button>
+            </div>
+            <div className="rit-nummers-rij">
+              <div className="rit-num-veld">
+                <label>Reistijd (min)</label>
+                <input type="number" value={r.reistijd || ''} onChange={e => updateRit(i, 'reistijd', e.target.value)} placeholder="0" min="0" />
+              </div>
+              <div className="rit-num-veld">
+                <label>Kilometers</label>
+                <input type="number" value={r.kilometers || ''} onChange={e => updateRit(i, 'kilometers', e.target.value)} placeholder="0" min="0" step="0.1" />
+              </div>
+            </div>
+          </div>
+        ))}
+        <button className="btn-toevoegen" onClick={voegRitToe}>+ Rit toevoegen</button>
+        {ritten.length > 0 && (
+          <div className="rit-totaal">
+            Totaal: <strong>{ritten.reduce((s, r) => s + (parseFloat(r.kilometers) || 0), 0).toFixed(1)} km</strong>
+          </div>
+        )}
+      </div>
+
+      {/* Foto's */}
+      <div className="sectie">
+        <div className="sectie-titel">Foto's</div>
+        {fotos.length > 0 && (
+          <div className="foto-lijst" style={{ marginBottom: 10 }}>
+            {fotos.map((foto, i) => (
+              <div key={i} className="foto-rij">
+                <span className="foto-naam">📷 {foto.naam}</span>
+                <a href={foto.url} target="_blank" rel="noreferrer" className="foto-link-btn">Bekijk</a>
+                <button className="btn-verwijder" onClick={() => verwijderFoto(i)}>×</button>
+              </div>
+            ))}
+          </div>
+        )}
+        <label className={`btn-toevoegen ${fotoUploadBezig ? 'disabled' : ''}`} style={{ cursor: 'pointer', display: 'inline-block' }}>
+          {fotoUploadBezig ? '⏳ Uploaden...' : '📷 Foto toevoegen'}
+          <input ref={fotoInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleFotoKiezen} disabled={fotoUploadBezig} />
+        </label>
       </div>
 
       {/* Notities */}
       <div className="sectie">
         <div className="sectie-titel">Notities</div>
-        <div className="veld">
-          <textarea value={formulier.notities} onChange={e => setVeld('notities', e.target.value)} placeholder="Interne notities..." rows={3} style={{ width: '100%', resize: 'vertical' }} />
-        </div>
+        <textarea value={formulier.notities} onChange={e => setVeld('notities', e.target.value)} placeholder="Interne notities..." rows={3} style={{ width: '100%', resize: 'vertical' }} />
       </div>
 
-      <div style={{ padding: '8px 0 60px' }}>
+      <div style={{ padding: '8px 0 80px' }}>
         <button className="btn btn-primair" style={{ width: '100%', padding: 14 }} onClick={opslaan} disabled={bezig}>
           {bezig ? 'Opslaan...' : '💾 Werkbon opslaan'}
         </button>
