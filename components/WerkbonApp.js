@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { genereerUBL } from '@/lib/ubl'
-import { msLogin, msLogout, msGetAccount, uploadFotoNaarOneDrive, uploadPdfNaarOneDrive } from '@/lib/onedrive'
+import { msLogin, msLogout, msGetAccount, uploadFotoNaarOneDrive, uploadPdfNaarOneDrive, syncFotosNaarOneDrive } from '@/lib/onedrive'
 import PlanningView from '@/components/PlanningView'
 import TodoView from '@/components/TodoView'
 
@@ -323,10 +323,17 @@ export default function WerkbonApp() {
   useEffect(() => {
     if (view !== 'detail' || !autoSavePdfRef.current || !huidigeBon || !bonPrintRef.current) return
     autoSavePdfRef.current = false
-    // Wacht even zodat fonts + afbeeldingen geladen zijn
     const t = setTimeout(() => slaWerkbonPdfOp(bonPrintRef.current, huidigeBon), 900)
     return () => clearTimeout(t)
   }, [view, huidigeBon])
+
+  // Sync medewerker-foto's (Supabase) naar OneDrive zodra Jordy een bon opent
+  useEffect(() => {
+    if (view !== 'detail' || !huidigeBon || !msIngelogd) return
+    const heeftSupabaseFotos = (huidigeBon.fotos || []).some(f => f.url?.includes('supabase'))
+    if (!heeftSupabaseFotos) return
+    syncFotosNaarOneDrive(huidigeBon.fotos, huidigeBon.nummer, huidigeBon.klant_naam)
+  }, [view, huidigeBon?.id, msIngelogd])
 
   useEffect(() => {
     window.history.replaceState({ view: 'overzicht' }, '')
