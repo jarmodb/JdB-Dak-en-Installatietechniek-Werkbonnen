@@ -112,18 +112,32 @@ function TakenTab({ medewerker, todos, setTodos }) {
 // ── Hoofdpagina ────────────────────────────────────────────────────────
 export default function PlanningDeelPage() {
   const { token } = useParams()
-  const [status, setStatus] = useState('laden')   // laden | pin | geldig | ongeldig
+  const [status, setStatus] = useState('laden')
   const [medewerker, setMedewerker] = useState(null)
   const [afspraken, setAfspraken] = useState([])
   const [todos, setTodos] = useState([])
   const [actieveTab, setActieveTab] = useState('planning')
+  // Werkbon navigatie — centraal beheerd zodat er maar één popstate listener is
+  const [werkbonView, setWerkbonView] = useState('lijst')   // lijst | detail | formulier
+  const [huidigeBon, setHuidigeBon] = useState(null)
 
   useEffect(() => {
-    window.history.replaceState({ tab: 'planning' }, '')
+    window.history.replaceState({ nav: 'tab', tab: 'planning' }, '')
 
     function handlePop(e) {
       const s = e.state
-      if (s?.tab) setActieveTab(s.tab)
+      if (!s || s.nav === 'tab') {
+        setActieveTab(s?.tab || 'planning')
+        setWerkbonView('lijst')
+        setHuidigeBon(null)
+      } else if (s.nav === 'werkbon-detail') {
+        setActieveTab('werkbonnen')
+        setHuidigeBon(s.bon)
+        setWerkbonView('detail')
+      } else if (s.nav === 'werkbon-formulier') {
+        setActieveTab('werkbonnen')
+        setWerkbonView('formulier')
+      }
     }
     window.addEventListener('popstate', handlePop)
 
@@ -151,8 +165,29 @@ export default function PlanningDeelPage() {
   }, [token])
 
   function wisselTab(tab) {
-    window.history.pushState({ tab }, '')
+    window.history.pushState({ nav: 'tab', tab }, '')
     setActieveTab(tab)
+    setWerkbonView('lijst')
+    setHuidigeBon(null)
+  }
+
+  function openWerkbonDetail(bon) {
+    window.history.pushState({ nav: 'werkbon-detail', bon }, '')
+    setHuidigeBon(bon)
+    setWerkbonView('detail')
+  }
+
+  function openWerkbonFormulier(bon) {
+    window.history.pushState({ nav: 'werkbon-formulier', bon }, '')
+    setHuidigeBon(bon)
+    setWerkbonView('formulier')
+  }
+
+  function werkbonOpgeslagen(bon) {
+    // Na opslaan: vervang huidige formulier-state zodat back naar detail gaat, niet formulier
+    window.history.replaceState({ nav: 'werkbon-detail', bon }, '')
+    setHuidigeBon(bon)
+    setWerkbonView('detail')
   }
 
   async function laadData(link) {
@@ -230,7 +265,14 @@ export default function PlanningDeelPage() {
         <TakenTab medewerker={medewerker} todos={todos} setTodos={setTodos} />
       )}
       {actieveTab === 'werkbonnen' && (
-        <MedewerkerWerkbonView key="werkbonnen" medewerker={medewerker} />
+        <MedewerkerWerkbonView
+          medewerker={medewerker}
+          view={werkbonView}
+          huidigeBon={huidigeBon}
+          onOpenDetail={openWerkbonDetail}
+          onBewerken={openWerkbonFormulier}
+          onOpgeslagen={werkbonOpgeslagen}
+        />
       )}
 
       {/* Navigatiebalk */}

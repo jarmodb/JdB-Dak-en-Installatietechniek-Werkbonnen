@@ -23,11 +23,9 @@ function leegFormulier(medewerker) {
   }
 }
 
-export default function MedewerkerWerkbonView({ medewerker }) {
-  const [view, setView] = useState('lijst')  // lijst | formulier | detail
+export default function MedewerkerWerkbonView({ medewerker, view, huidigeBon, onOpenDetail, onBewerken, onOpgeslagen }) {
   const [werkbonnen, setWerkbonnen] = useState([])
   const [laden, setLaden] = useState(true)
-  const [huidigeBon, setHuidigeBon] = useState(null)
   const [bewerkModus, setBewerkModus] = useState(false)
   const [bezig, setBezig] = useState(false)
 
@@ -39,20 +37,6 @@ export default function MedewerkerWerkbonView({ medewerker }) {
 
   useEffect(() => {
     laadWerkbonnen()
-
-    function handlePop(e) {
-      const s = e.state
-      if (!s || s.tab) {
-        // Terug naar tab-niveau: toon de lijst
-        setView('lijst')
-        return
-      }
-      if (s.medView === 'detail' && s.bon) { setHuidigeBon(s.bon); setView('detail') }
-      else if (s.medView === 'formulier') { setView('formulier') }
-      else { setView('lijst') }
-    }
-    window.addEventListener('popstate', handlePop)
-    return () => window.removeEventListener('popstate', handlePop)
   }, [])
 
   async function laadWerkbonnen() {
@@ -86,18 +70,8 @@ export default function MedewerkerWerkbonView({ medewerker }) {
     setPostcodeBezig(false)
   }
 
-  async function nieuweWerkbon() {
-    const nummer = await genNummer()
-    setFormulier({ ...leegFormulier(), nummer })
-    setWerkdagen([{ datum: vandaag(), omschrijving: '', uren: '', medewerker_id: medewerker.id, medewerker_naam: medewerker.naam, medewerker_kleur: medewerker.kleur || '#C9A227' }])
-    setMaterialen([])
-    setBewerkModus(false)
-    setHuidigeBon(null)
-    setView('formulier')
-  }
-
   function bewerkWerkbon(bon) {
-    window.history.pushState({ medView: 'formulier' }, '')
+    setBewerkModus(true)
     setFormulier({
       nummer: bon.nummer || '',
       datum: bon.datum || vandaag(),
@@ -113,9 +87,7 @@ export default function MedewerkerWerkbonView({ medewerker }) {
     })
     setWerkdagen(bon.werkdagen?.length ? bon.werkdagen : [{ datum: vandaag(), omschrijving: '', uren: '', medewerker_id: medewerker.id, medewerker_naam: medewerker.naam, medewerker_kleur: medewerker.kleur || '#C9A227' }])
     setMaterialen(bon.materialen || [])
-    setBewerkModus(true)
-    setHuidigeBon(bon)
-    setView('formulier')
+    onBewerken(bon)
   }
 
   async function opslaan() {
@@ -156,10 +128,7 @@ export default function MedewerkerWerkbonView({ medewerker }) {
     }
     setBezig(false)
     await laadWerkbonnen()
-    setHuidigeBon(result)
-    // Vervang formulier-state door detail-state zodat back-knop naar lijst gaat
-    window.history.replaceState({ medView: 'detail', bon: result }, '')
-    setView('detail')
+    onOpgeslagen(result)
   }
 
   // Werkdagen helpers
@@ -185,7 +154,7 @@ export default function MedewerkerWerkbonView({ medewerker }) {
         ) : (
           <div className="bon-lijst">
             {werkbonnen.map(bon => (
-              <div key={bon.id} className="bon-kaart" onClick={() => { window.history.pushState({ medView: 'detail', bon }, ''); setHuidigeBon(bon); setView('detail') }}>
+              <div key={bon.id} className="bon-kaart" onClick={() => onOpenDetail(bon)}>
                 <div className="bon-nummer">{bon.nummer}</div>
                 <div className="bon-info">
                   <div className="bon-klant">{bon.klant_naam || '(geen naam)'}</div>
@@ -209,7 +178,7 @@ export default function MedewerkerWerkbonView({ medewerker }) {
     return (
       <div className="view-content">
         <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-          <button className="form-terug" style={{ margin: 0 }} onClick={() => setView('lijst')}>← Terug</button>
+          <button className="form-terug" style={{ margin: 0 }} onClick={() => window.history.back()}>← Terug</button>
           <button className="btn btn-primair" onClick={() => bewerkWerkbon(huidigeBon)}>✏️ Bewerken</button>
           <button className="btn btn-sec" onClick={() => window.print()}>🖨️ PDF</button>
         </div>
@@ -277,7 +246,7 @@ export default function MedewerkerWerkbonView({ medewerker }) {
   return (
     <div className="view-content form-content">
       <div className="top-acties">
-        <button className="form-terug" onClick={() => setView(bewerkModus ? 'detail' : 'lijst')}>← Terug</button>
+        <button className="form-terug" onClick={() => window.history.back()}>← Terug</button>
         <button className="btn btn-primair" onClick={opslaan} disabled={bezig}>
           {bezig ? 'Opslaan...' : '💾 Opslaan'}
         </button>
