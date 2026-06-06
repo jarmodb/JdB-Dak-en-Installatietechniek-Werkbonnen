@@ -291,6 +291,7 @@ function WerkbonModal({ offerte, onAanmaken, onSluiten }) {
 // ── E-mail modal ──────────────────────────────────────────────────────
 function EmailModal({ offerte, onVerstuur, onSluiten, bezig }) {
   const [email, setEmail] = useState(offerte.klant_email || '')
+  const [kopie, setKopie] = useState(true)
   const [bericht, setBericht] = useState(
     `Geachte ${offerte.klant_naam || 'heer/mevrouw'},\n\nHierbij ontvangt u onze offerte ${offerte.nummer}.\n\nWij hopen u hiermee een passend aanbod te hebben gedaan. Neem gerust contact op voor vragen.\n\nMet vriendelijke groet,\nJdB Dak- en Installatietechniek`
   )
@@ -306,12 +307,16 @@ function EmailModal({ offerte, onVerstuur, onSluiten, bezig }) {
           <label>Begeleidend bericht</label>
           <textarea value={bericht} onChange={e => setBericht(e.target.value)} rows={6} style={{ resize: 'vertical' }} />
         </div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#555', marginBottom: 16, cursor: 'pointer' }}>
+          <input type="checkbox" checked={kopie} onChange={e => setKopie(e.target.checked)} />
+          Stuur een kopie naar jdbtechniek@gmail.com
+        </label>
         <p style={{ fontSize: 12, color: '#888', marginBottom: 12 }}>
-          De offerte wordt als nette HTML-mail verstuurd vanuit jdbtechniek@gmail.com. De status wordt automatisch gewijzigd naar "Verstuurd".
+          De offerte wordt als PDF bijlage verstuurd. De status wordt automatisch gewijzigd naar "Verstuurd".
         </p>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn btn-licht" style={{ flex: 1 }} onClick={onSluiten} disabled={bezig}>Annuleren</button>
-          <button className="btn btn-primair" style={{ flex: 1 }} onClick={() => onVerstuur(email, bericht)} disabled={!email || bezig}>
+          <button className="btn btn-primair" style={{ flex: 1 }} onClick={() => onVerstuur(email, bericht, kopie)} disabled={!email || bezig}>
             {bezig ? 'Versturen...' : '✉️ Verstuur offerte'}
           </button>
         </div>
@@ -796,8 +801,8 @@ export default function OfferteView({ klanten, producten, onWerkbonAangemaakt, m
         .set({
           margin: 0,
           filename: `${offerte.nummer}.pdf`,
-          image: { type: 'jpeg', quality: 0.97 },
-          html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff', windowWidth: 794 },
+          image: { type: 'jpeg', quality: 0.92 },
+          html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff', windowWidth: 794, letterRendering: true },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
         })
         .outputPdf('blob')
@@ -854,7 +859,7 @@ export default function OfferteView({ klanten, producten, onWerkbonAangemaakt, m
     onWerkbonAangemaakt(werkbonData)
   }
 
-  async function stuurEmail(email, bericht) {
+  async function stuurEmail(email, bericht, kopieNaarAfzender = false) {
     if (!huidig) return
     setEmailBezig(true)
     try {
@@ -898,6 +903,7 @@ export default function OfferteView({ klanten, producten, onWerkbonAangemaakt, m
           email,
           offerte_pdf_base64: offertePdfBase64,
           av_pad: avPad,
+          kopie_naar_afzender: kopieNaarAfzender,
         }),
       })
       if (!res.ok) throw new Error((await res.json()).error || 'Onbekende fout')

@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 
 export async function POST(request) {
   try {
-    const { offerte, bericht, email, offerte_pdf_base64, av_pad } = await request.json()
+    const { offerte, bericht, email, offerte_pdf_base64, av_pad, kopie_naar_afzender } = await request.json()
 
     const afzender = process.env.EMAIL_AFZENDER
     const wachtwoord = process.env.EMAIL_WACHTWOORD
@@ -68,6 +68,7 @@ export async function POST(request) {
     await transporter.sendMail({
       from: `JdB Dak- en Installatietechniek <${afzender}>`,
       to: email,
+      ...(kopie_naar_afzender ? { cc: afzender } : {}),
       subject: `Offerte ${offerte.nummer} – JdB Dak- en Installatietechniek`,
       html,
       attachments,
