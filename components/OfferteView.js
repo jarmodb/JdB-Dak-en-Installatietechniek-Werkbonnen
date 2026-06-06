@@ -854,12 +854,18 @@ export default function OfferteView({ klanten, producten, onWerkbonAangemaakt, m
     onWerkbonAangemaakt(werkbonData)
   }
 
+  async function blobNaarBase64(blob) {
+    return new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result.split(',')[1])
+      reader.readAsDataURL(blob)
+    })
+  }
+
   async function stuurEmail(email, bericht) {
     if (!huidig) return
     setEmailBezig(true)
     try {
-      const t = berekenTotalen(huidig)
-
       // Genereer offerte PDF als base64 vanuit het print-element
       let offertePdfBase64 = null
       if (printRef.current) {
@@ -881,6 +887,26 @@ export default function OfferteView({ klanten, producten, onWerkbonAangemaakt, m
         }
       }
 
+      // Haal AV PDF op client-side op en stuur als base64 mee
+      let avPdfBase64 = null
+      if (instellingen.av_url) {
+        try {
+          const avRes = await fetch(instellingen.av_url)
+          if (avRes.ok) avPdfBase64 = await blobNaarBase64(await avRes.blob())
+        } catch {}
+        // Fallback via Supabase storage
+        if (!avPdfBase64) {
+          try {
+            const match = instellingen.av_url.match(/\/object\/public\/werkbon-fotos\/([^?]+)/)
+            const pad = match?.[1]
+            if (pad) {
+              const { data: blob } = await supabase.storage.from('werkbon-fotos').download(decodeURIComponent(pad))
+              if (blob) avPdfBase64 = await blobNaarBase64(blob)
+            }
+          } catch {}
+        }
+      }
+
       const res = await fetch('/api/stuur-offerte', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -888,10 +914,8 @@ export default function OfferteView({ klanten, producten, onWerkbonAangemaakt, m
           offerte: huidig,
           bericht,
           email,
-          totalen: t,
-          verwerkteT: verwerkVariabelen(huidig.tekst, huidig),
-          av_url: instellingen.av_url || null,
           offerte_pdf_base64: offertePdfBase64,
+          av_pdf_base64: avPdfBase64,
         }),
       })
       if (!res.ok) throw new Error((await res.json()).error || 'Onbekende fout')
