@@ -269,7 +269,7 @@ function AfspraakForm({ form, setForm, klanten, werkbonnen, medewerkers, onOpsla
 }
 
 // ── Medewerkers beheer ────────────────────────────────────────────────
-function MedewerkersView({ medewerkers, onVervers, onTerug }) {
+export function MedewerkersView({ medewerkers, onVervers, onTerug }) {
   async function voegToe() {
     const naam = window.prompt('Naam van de medewerker:')
     if (!naam?.trim()) return

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { genereerUBL } from '@/lib/ubl'
 import { msLogin, msLogout, msGetAccount, uploadFotoNaarOneDrive, uploadPdfNaarOneDrive, syncFotosNaarOneDrive } from '@/lib/onedrive'
-import PlanningView from '@/components/PlanningView'
+import PlanningView, { MedewerkersView } from '@/components/PlanningView'
 import TodoView from '@/components/TodoView'
 
 const CHANGELOG = [
@@ -636,7 +636,7 @@ export default function WerkbonApp() {
 
   const totalen = bereken(werkdagen, formulier.uurtarief, materialen)
   const toonNav = ['overzicht', 'klanten', 'producten', 'planning', 'todos'].includes(view)
-  const headerTitel = view === 'overzicht' ? 'JdB Werkbonnen' : view === 'klanten' ? 'Klanten' : view === 'producten' ? 'Producten' : view === 'planning' ? 'Planning' : view === 'todos' ? 'Taken' : view === 'formulier' ? (bewerkModus ? 'Bewerken' : 'Nieuwe werkbon') : huidigeBon?.nummer || ''
+  const headerTitel = view === 'overzicht' ? 'JdB Werkbonnen' : view === 'klanten' ? 'Klanten' : view === 'producten' ? 'Producten' : view === 'planning' ? 'Planning' : view === 'todos' ? 'Taken' : view === 'medewerkers' ? 'Medewerkers' : view === 'formulier' ? (bewerkModus ? 'Bewerken' : 'Nieuwe werkbon') : huidigeBon?.nummer || ''
 
   return (
     <>
@@ -649,6 +649,9 @@ export default function WerkbonApp() {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button className="btn-changelog-header" onClick={() => navigeer('medewerkers')} title="Medewerkers beheren">
+            👥
+          </button>
           <button className={`btn-ms-header ${msIngelogd ? 'ingelogd' : ''}`} onClick={msIngelogd ? handleMsLogout : handleMsLogin} title={msIngelogd ? 'Uitloggen bij Microsoft' : 'Inloggen voor foto-upload'}>
             {msIngelogd ? '☁️ MS ✓' : '☁️ MS'}
           </button>
@@ -697,6 +700,15 @@ export default function WerkbonApp() {
 
       {/* ── TODOS ── */}
       {view === 'todos' && <TodoView />}
+
+      {/* ── MEDEWERKERS ── */}
+      {view === 'medewerkers' && (
+        <MedewerkersView
+          medewerkers={medewerkers}
+          onVervers={laadMedewerkers}
+          onTerug={toonOverzicht}
+        />
+      )}
 
       {/* ── FORMULIER ── */}
       {view === 'formulier' && (
