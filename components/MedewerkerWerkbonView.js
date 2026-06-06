@@ -80,7 +80,9 @@ export default function MedewerkerWerkbonView({ medewerker, view, huidigeBon, on
   function verwijderWerkdag(idx) { setWerkdagen(w => w.filter((_, i) => i !== idx)) }
 
   // ── Materialen ──
-  function voegMateriaalToe() { setMaterialen(m => [...m, { omschrijving: '', aantal: 1, eenheid: 'stuk', prijs: 0 }]) }
+  function voegMateriaalToe() {
+    setMaterialen(m => [...m, { omschrijving: '', aantal: 1, eenheid: 'stuk', prijs: 0, medewerker_id: medewerker.id, medewerker_naam: medewerker.naam, medewerker_kleur: medewerker.kleur || '#C9A227' }])
+  }
   function updateMateriaal(idx, key, val) { setMaterialen(m => m.map((item, i) => i === idx ? { ...item, [key]: val } : item)) }
   function verwijderMateriaal(idx) { setMaterialen(m => m.filter((_, i) => i !== idx)) }
   function productSelecteren(idx, product) {
@@ -174,7 +176,7 @@ export default function MedewerkerWerkbonView({ medewerker, view, huidigeBon, on
       .map(w => ({ datum: w.datum, omschrijving: w.omschrijving, uren: parseFloat(w.uren) || 0, medewerker_id: w.medewerker_id || null, medewerker_naam: w.medewerker_naam || null, medewerker_kleur: w.medewerker_kleur || null }))
     const geldigeMat = materialen
       .filter(m => m.omschrijving)
-      .map(m => ({ omschrijving: m.omschrijving, aantal: parseFloat(m.aantal) || 1, eenheid: m.eenheid || 'stuk', prijs: parseFloat(m.prijs) || 0 }))
+      .map(m => ({ omschrijving: m.omschrijving, aantal: parseFloat(m.aantal) || 1, eenheid: m.eenheid || 'stuk', prijs: parseFloat(m.prijs) || 0, medewerker_id: m.medewerker_id || null, medewerker_naam: m.medewerker_naam || null, medewerker_kleur: m.medewerker_kleur || null }))
     const geldigeRitten = ritten
       .filter(r => r.startadres || r.kilometers)
       .map(({ _bezig, ...r }) => ({ ...r, reistijd: parseFloat(r.reistijd) || 0, kilometers: parseFloat(r.kilometers) || 0 }))

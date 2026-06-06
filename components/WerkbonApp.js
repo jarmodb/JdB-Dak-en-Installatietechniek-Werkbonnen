@@ -478,7 +478,7 @@ export default function WerkbonApp() {
   function verwijderWerkdag(idx) { setWerkdagen(w => w.filter((_, i) => i !== idx)) }
 
   // Materialen
-  function voegMateriaaltoe() { setMaterialen(m => [...m, { omschrijving: '', aantal: '', eenheid: 'stuk', prijs: '' }]) }
+  function voegMateriaaltoe() { setMaterialen(m => [...m, { omschrijving: '', aantal: '', eenheid: 'stuk', prijs: '', medewerker_id: '' }]) }
   function updateMateriaal(idx, key, val) { setMaterialen(m => m.map((item, i) => i === idx ? { ...item, [key]: val } : item)) }
   function verwijderMateriaal(idx) { setMaterialen(m => m.filter((_, i) => i !== idx)) }
 
@@ -539,7 +539,10 @@ export default function WerkbonApp() {
       const med = medewerkers.find(m => m.id === w.medewerker_id)
       return { datum: w.datum, omschrijving: w.omschrijving, uren: parseFloat(w.uren) || 0, medewerker_id: w.medewerker_id || null, medewerker_naam: med?.naam || null, medewerker_kleur: med?.kleur || null }
     })
-    const geldigeMat = materialen.filter(m => m.omschrijving || m.aantal || m.prijs).map(m => ({ omschrijving: m.omschrijving, aantal: parseFloat(m.aantal) || 0, eenheid: m.eenheid || 'stuk', prijs: parseFloat(m.prijs) || 0 }))
+    const geldigeMat = materialen.filter(m => m.omschrijving || m.aantal || m.prijs).map(m => {
+      const med = medewerkers.find(x => x.id === m.medewerker_id)
+      return { omschrijving: m.omschrijving, aantal: parseFloat(m.aantal) || 0, eenheid: m.eenheid || 'stuk', prijs: parseFloat(m.prijs) || 0, medewerker_id: m.medewerker_id || null, medewerker_naam: med?.naam || null, medewerker_kleur: med?.kleur || null }
+    })
     const totalen = bereken(geldigeWerkdagen, formulier.uurtarief, geldigeMat)
     const rij = {
       nummer: formulier.nummer, datum: formulier.datum, type: geselecteerdeTypes.join(', '),
@@ -842,21 +845,29 @@ export default function WerkbonApp() {
             </div>
             <div className="materialen-lijst">
               {materialen.map((m, i) => (
-                <div key={i} className="materiaal-rij-5">
-                  <Autocomplete
-                    waarde={m.omschrijving}
-                    opties={producten}
-                    onChange={v => updateMateriaal(i, 'omschrijving', v)}
-                    onSelecteer={p => productSelecteren(i, p)}
-                    placeholder="Omschrijving"
-                    renderOptie={p => <div><span>{p.naam}</span><span className="autocomplete-optie-sub">{euro(p.prijs)} / {p.eenheid}</span></div>}
-                  />
-                  <input type="number" value={m.aantal} onChange={e => updateMateriaal(i, 'aantal', e.target.value)} placeholder="0" min="0" style={{ textAlign: 'center' }} />
-                  <select value={m.eenheid || 'stuk'} onChange={e => updateMateriaal(i, 'eenheid', e.target.value)}>
-                    {EENHEDEN.map(e => <option key={e}>{e}</option>)}
-                  </select>
-                  <input type="number" value={m.prijs} onChange={e => updateMateriaal(i, 'prijs', e.target.value)} placeholder="0,00" min="0" step="0.01" style={{ textAlign: 'right' }} />
-                  <button className="btn-verwijder" onClick={() => verwijderMateriaal(i)}>×</button>
+                <div key={i} className="werkdag-item">
+                  <div className="materiaal-rij-5">
+                    <Autocomplete
+                      waarde={m.omschrijving}
+                      opties={producten}
+                      onChange={v => updateMateriaal(i, 'omschrijving', v)}
+                      onSelecteer={p => productSelecteren(i, p)}
+                      placeholder="Omschrijving"
+                      renderOptie={p => <div><span>{p.naam}</span><span className="autocomplete-optie-sub">{euro(p.prijs)} / {p.eenheid}</span></div>}
+                    />
+                    <input type="number" value={m.aantal} onChange={e => updateMateriaal(i, 'aantal', e.target.value)} placeholder="0" min="0" style={{ textAlign: 'center' }} />
+                    <select value={m.eenheid || 'stuk'} onChange={e => updateMateriaal(i, 'eenheid', e.target.value)}>
+                      {EENHEDEN.map(e => <option key={e}>{e}</option>)}
+                    </select>
+                    <input type="number" value={m.prijs} onChange={e => updateMateriaal(i, 'prijs', e.target.value)} placeholder="0,00" min="0" step="0.01" style={{ textAlign: 'right' }} />
+                    <button className="btn-verwijder" onClick={() => verwijderMateriaal(i)}>×</button>
+                  </div>
+                  {medewerkers.length > 0 && (
+                    <select className="med-select" value={m.medewerker_id || ''} onChange={e => updateMateriaal(i, 'medewerker_id', e.target.value)}>
+                      <option value="">— Niemand —</option>
+                      {medewerkers.map(med => <option key={med.id} value={med.id}>{med.naam}</option>)}
+                    </select>
+                  )}
                 </div>
               ))}
             </div>
@@ -1085,7 +1096,22 @@ function BonAfdruk({ bon }) {
                     <td style={{ textAlign: 'right' }}>{euro(w.uren * bon.uurtarief)}</td>
                   </tr>
                 ))}
-                {materialen.map((m, i) => <tr key={`m${i}`}><td>{m.omschrijving}</td><td style={{ textAlign: 'center' }}>{m.aantal} {m.eenheid || 'stuk'}</td><td style={{ textAlign: 'right' }}>{euro(m.prijs)}</td><td style={{ textAlign: 'right' }}>{euro(m.aantal * m.prijs)}</td></tr>)}
+                {materialen.map((m, i) => (
+                  <tr key={`m${i}`}>
+                    <td>
+                      {m.omschrijving}
+                      {m.medewerker_naam && (
+                        <span style={{ marginLeft: 8, display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, background: (m.medewerker_kleur || '#C9A227') + '22', color: m.medewerker_kleur || '#C9A227', border: `1px solid ${(m.medewerker_kleur || '#C9A227')}55`, borderRadius: 10, padding: '1px 7px', fontWeight: 600, verticalAlign: 'middle' }}>
+                          <span style={{ width: 7, height: 7, borderRadius: '50%', background: m.medewerker_kleur || '#C9A227', display: 'inline-block' }} />
+                          {m.medewerker_naam}
+                        </span>
+                      )}
+                    </td>
+                    <td style={{ textAlign: 'center' }}>{m.aantal} {m.eenheid || 'stuk'}</td>
+                    <td style={{ textAlign: 'right' }}>{euro(m.prijs)}</td>
+                    <td style={{ textAlign: 'right' }}>{euro(m.aantal * m.prijs)}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
