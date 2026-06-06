@@ -884,7 +884,7 @@ export default function WerkbonApp() {
                   {fotos.map((foto, i) => (
                     <div key={i} className="foto-rij">
                       <span className="foto-naam">📷 {foto.naam}</span>
-                      <a href={foto.shareUrl} target="_blank" rel="noreferrer" className="foto-link-btn">Bekijk</a>
+                      <a href={foto.shareUrl || foto.url} target="_blank" rel="noreferrer" className="foto-link-btn">Bekijk</a>
                       <button className="btn-verwijder" onClick={() => verwijderFoto(i)}>×</button>
                     </div>
                   ))}
@@ -1151,7 +1151,7 @@ function BonAfdruk({ bon }) {
             </table>
           </div>
         )}
-        {fotos.length > 0 && <div className="bon-sectie"><div className="bon-sectie-titel">Foto's ({fotos.length})</div><div className="bon-foto-lijst">{fotos.map((f, i) => <a key={i} href={f.shareUrl} target="_blank" rel="noreferrer" className="bon-foto-link">📷 {f.naam}</a>)}</div></div>}
+        {fotos.length > 0 && <div className="bon-sectie"><div className="bon-sectie-titel">Foto's ({fotos.length})</div><div className="bon-foto-lijst">{fotos.map((f, i) => <a key={i} href={f.shareUrl || f.url} target="_blank" rel="noreferrer" className="bon-foto-link">📷 {f.naam}</a>)}</div></div>}
       </div>
 
       <div className="bon-footer">JdB Dak- &amp; Installatietechniek &bull; Werkbon {bon.nummer} &bull; {datumNL(bon.datum)}</div>
