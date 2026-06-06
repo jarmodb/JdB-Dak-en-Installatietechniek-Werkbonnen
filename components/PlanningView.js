@@ -270,6 +270,9 @@ function AfspraakForm({ form, setForm, klanten, werkbonnen, medewerkers, onOpsla
 
 // ── Medewerkers beheer ────────────────────────────────────────────────
 export function MedewerkersView({ medewerkers, onVervers, onTerug }) {
+  const [pinZichtbaar, setPinZichtbaar] = useState({})
+  function togglePin(id) { setPinZichtbaar(p => ({ ...p, [id]: !p[id] })) }
+
   async function voegToe() {
     const naam = window.prompt('Naam van de medewerker:')
     if (!naam?.trim()) return
@@ -324,12 +327,24 @@ export function MedewerkersView({ medewerkers, onVervers, onTerug }) {
                   <div className="klant-adres" style={{ fontFamily: 'monospace', fontSize: 11, wordBreak: 'break-all' }}>
                     {typeof window !== 'undefined' ? `${window.location.origin}/planning/${m.token}` : `/planning/${m.token}`}
                   </div>
-                  <div style={{ marginTop: 4, fontSize: 12, color: m.pin ? '#389E0D' : '#aaa' }}>
-                    {m.pin ? '🔒 PIN ingesteld' : '⚠️ Nog geen PIN'}
+                  <div style={{ marginTop: 4, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {m.pin ? (
+                      <>
+                        <span style={{ color: '#389E0D' }}>🔒</span>
+                        <span style={{ fontFamily: 'monospace', letterSpacing: pinZichtbaar[m.id] ? 2 : 1, color: '#555' }}>
+                          {pinZichtbaar[m.id] ? m.pin : '••••'}
+                        </span>
+                        <button onClick={() => togglePin(m.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, padding: '0 2px', color: '#888' }} title={pinZichtbaar[m.id] ? 'Verberg PIN' : 'Toon PIN'}>
+                          {pinZichtbaar[m.id] ? '🙈' : '👁️'}
+                        </button>
+                      </>
+                    ) : (
+                      <span style={{ color: '#aaa' }}>⚠️ Nog geen PIN</span>
+                    )}
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                  <button className="btn btn-licht" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => stelPinIn(m)} title="PIN instellen">🔑 PIN</button>
+                  <button className="btn btn-licht" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => stelPinIn(m)} title="PIN wijzigen">🔑 PIN</button>
                   <button className="btn btn-licht" style={{ padding: '4px 10px', fontSize: 13 }} onClick={() => kopieer(m.token)} title="Link kopiëren">📋</button>
                   <button className="btn-verwijder" onClick={() => verwijder(m.id)}>×</button>
                 </div>
