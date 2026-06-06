@@ -1,13 +1,19 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
+export const maxDuration = 30
+
 // Server-side route — gebruikt service role key die RLS bypast
 export async function POST(request) {
   try {
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_KEY
-    )
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const key = process.env.SUPABASE_SERVICE_KEY
+
+    if (!url || !key) {
+      return NextResponse.json({ error: 'SUPABASE_SERVICE_KEY is niet ingesteld op de server. Voeg deze toe in Vercel Environment Variables.' }, { status: 500 })
+    }
+
+    const supabaseAdmin = createClient(url, key)
 
     const formData = await request.formData()
     const bestand = formData.get('bestand')
@@ -36,6 +42,6 @@ export async function POST(request) {
 
     return NextResponse.json({ url: urlData.publicUrl })
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    return NextResponse.json({ error: err.message || 'Onbekende fout' }, { status: 500 })
   }
 }
