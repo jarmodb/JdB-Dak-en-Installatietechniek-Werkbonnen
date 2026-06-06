@@ -6,7 +6,7 @@ function datumNL(iso) { if (!iso) return ''; const [y, m, d] = iso.split('-'); r
 
 export async function POST(request) {
   try {
-    const { offerte, bericht, email, totalen, verwerkteT } = await request.json()
+    const { offerte, bericht, email, totalen, verwerkteT, av_url } = await request.json()
 
     const afzender = process.env.EMAIL_AFZENDER
     const wachtwoord = process.env.EMAIL_WACHTWOORD
@@ -102,11 +102,28 @@ export async function POST(request) {
       </div>
     `
 
+    // Algemene voorwaarden als bijlage ophalen
+    const attachments = []
+    if (av_url) {
+      try {
+        const avRes = await fetch(av_url)
+        if (avRes.ok) {
+          const buf = Buffer.from(await avRes.arrayBuffer())
+          attachments.push({
+            filename: 'Algemene voorwaarden.pdf',
+            content: buf,
+            contentType: 'application/pdf',
+          })
+        }
+      } catch {}
+    }
+
     await transporter.sendMail({
       from: `JdB Dak- en Installatietechniek <${afzender}>`,
       to: email,
       subject: `Offerte ${offerte.nummer} – JdB Dak- en Installatietechniek`,
       html,
+      attachments,
     })
 
     return NextResponse.json({ ok: true })

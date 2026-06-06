@@ -1202,7 +1202,9 @@ function InstellingenView({ instellingen, onChange }) {
   const [bezig, setBezig] = useState(false)
   const [opgeslagen, setOpgeslagen] = useState(false)
   const [logoBezig, setLogoBezig] = useState(false)
+  const [avBezig, setAvBezig] = useState(false)
   const logoInputRef = useRef(null)
+  const avInputRef = useRef(null)
 
   useEffect(() => { setForm({ ...instellingen }) }, [JSON.stringify(instellingen)])
 
@@ -1233,6 +1235,22 @@ function InstellingenView({ instellingen, onChange }) {
     if (logoInputRef.current) logoInputRef.current.value = ''
   }
 
+  async function handleAv(e) {
+    const bestand = e.target.files?.[0]
+    if (!bestand) return
+    if (bestand.type !== 'application/pdf') { alert('Kies een PDF-bestand'); return }
+    setAvBezig(true)
+    try {
+      const pad = 'instellingen/algemene-voorwaarden.pdf'
+      const res = await fetch('/api/foto-upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pad }) })
+      const { signedUrl, publicUrl } = await res.json()
+      await fetch(signedUrl, { method: 'PUT', headers: { 'Content-Type': 'application/pdf', 'x-upsert': 'true' }, body: bestand })
+      sv('av_url', publicUrl + '?v=' + Date.now())
+    } catch (err) { alert('Upload mislukt: ' + err.message) }
+    setAvBezig(false)
+    if (avInputRef.current) avInputRef.current.value = ''
+  }
+
   return (
     <div className="view-content with-bottom-nav">
       <div className="top-acties">
@@ -1252,6 +1270,24 @@ function InstellingenView({ instellingen, onChange }) {
             </button>
             {form.logo_url && <button className="btn btn-licht" onClick={() => sv('logo_url', '')}>Verwijder</button>}
           </div>
+        </div>
+      </div>
+      <div className="sectie">
+        <div className="sectie-titel">Algemene voorwaarden</div>
+        <p style={{ fontSize: 13, color: '#888', marginBottom: 10 }}>
+          Wordt automatisch als bijlage meegestuurd bij elke offerte per e-mail.
+        </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          {form.av_url && (
+            <a href={form.av_url} target="_blank" rel="noreferrer" className="btn btn-licht" style={{ textDecoration: 'none' }}>
+              📄 Bekijk huidige PDF
+            </a>
+          )}
+          <input ref={avInputRef} type="file" accept="application/pdf" onChange={handleAv} style={{ display: 'none' }} />
+          <button className="btn btn-licht" onClick={() => avInputRef.current?.click()} disabled={avBezig}>
+            {avBezig ? '⏳ Uploaden...' : form.av_url ? '🔄 Vervang PDF' : '📎 Upload AV-PDF'}
+          </button>
+          {form.av_url && <button className="btn btn-licht" onClick={() => sv('av_url', '')}>Verwijder</button>}
         </div>
       </div>
       <div className="sectie">

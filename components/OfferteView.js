@@ -859,7 +859,7 @@ export default function OfferteView({ klanten, producten, onWerkbonAangemaakt, m
       const res = await fetch('/api/stuur-offerte', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ offerte: huidig, bericht, email, totalen: t, verwerkteT: verwerkVariabelen(huidig.tekst, huidig) }),
+        body: JSON.stringify({ offerte: huidig, bericht, email, totalen: t, verwerkteT: verwerkVariabelen(huidig.tekst, huidig), av_url: instellingen.av_url || null }),
       })
       if (!res.ok) throw new Error((await res.json()).error || 'Onbekende fout')
       await wisselStatus(huidig, 'verstuurd')
