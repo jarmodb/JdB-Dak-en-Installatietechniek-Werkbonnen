@@ -456,7 +456,7 @@ function OfferteFormulier({ offerte, offertes, klanten, producten, sjablonen, on
         setAutosaveStatus('opslaan')
         try {
           const { id, ...data } = form
-          const { error } = await supabase.from('offertes').update(data).eq('id', id)
+          const { error } = await supabase.from('offertes').update(saniteerVoorOpslaan(data)).eq('id', id)
           if (!error) {
             setAutosaveStatus('opgeslagen')
             setTimeout(() => setAutosaveStatus(null), 2500)
@@ -475,6 +475,20 @@ function OfferteFormulier({ offerte, offertes, klanten, producten, sjablonen, on
   }, [JSON.stringify(form)])
 
   function sv(k, v) { setForm(f => ({ ...f, [k]: v })) }
+
+  function saniteerVoorOpslaan(data) {
+    return {
+      ...data,
+      uren: data.uren === '' || data.uren == null ? null : parseFloat(data.uren) || 0,
+      uurtarief: data.uurtarief === '' || data.uurtarief == null ? null : parseFloat(data.uurtarief) || 0,
+      btw_percentage: data.btw_percentage === '' || data.btw_percentage == null ? 21 : parseFloat(data.btw_percentage),
+      materialen: (data.materialen || []).map(m => ({
+        ...m,
+        aantal: m.aantal === '' ? 0 : parseFloat(m.aantal) || 0,
+        stukprijs: m.stukprijs === '' ? 0 : parseFloat(m.stukprijs) || 0,
+      })),
+    }
+  }
 
   function klantSelecteren(k) {
     setForm(f => ({ ...f, klant_naam: k.naam, klant_adres: k.adres || '', klant_postcode: k.postcode || '', klant_plaats: k.plaats || '', klant_email: k.email || '' }))
@@ -517,7 +531,8 @@ function OfferteFormulier({ offerte, offertes, klanten, producten, sjablonen, on
     if (!form.klant_naam?.trim()) { alert('Klantnaam is verplicht'); return }
     setBezig(true)
     try {
-      const { id, ...data } = form
+      const { id, ...raw } = form
+      const data = saniteerVoorOpslaan(raw)
       let result, error
       if (id) {
         const res = await supabase.from('offertes').update(data).eq('id', id).select().single()
