@@ -133,13 +133,25 @@ export default function MedewerkerWerkbonView({ medewerker, view, huidigeBon, on
     for (const bestand of bestanden) {
       try {
         const pad = `${formulier.nummer || 'concept'}/${Date.now()}_${bestand.name}`
-        const formData = new FormData()
-        formData.append('bestand', bestand)
-        formData.append('pad', pad)
-        const res = await fetch('/api/foto-upload', { method: 'POST', body: formData })
+
+        // Stap 1: signed upload URL ophalen van onze API route
+        const res = await fetch('/api/foto-upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pad }),
+        })
         const data = await res.json()
-        if (!res.ok) throw new Error(data.error || 'Upload mislukt')
-        setFotos(f => [...f, { naam: bestand.name, url: data.url, datum: new Date().toISOString() }])
+        if (!res.ok) throw new Error(data.error || 'Kon upload URL niet ophalen')
+
+        // Stap 2: bestand direct naar Supabase uploaden via signed URL
+        const uploadRes = await fetch(data.signedUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': bestand.type || 'image/jpeg', 'x-upsert': 'true' },
+          body: bestand,
+        })
+        if (!uploadRes.ok) throw new Error('Upload naar Supabase mislukt')
+
+        setFotos(f => [...f, { naam: bestand.name, url: data.publicUrl, datum: new Date().toISOString() }])
       } catch (err) { alert(`Upload mislukt: ${err.message}`) }
     }
     setFotoUploadBezig(false)
