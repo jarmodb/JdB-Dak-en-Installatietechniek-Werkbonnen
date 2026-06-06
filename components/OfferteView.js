@@ -873,8 +873,8 @@ export default function OfferteView({ klanten, producten, onWerkbonAangemaakt, m
             .set({
               margin: 0,
               filename: `Offerte-${huidig.nummer}.pdf`,
-              image: { type: 'jpeg', quality: 0.92 },
-              html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff', letterRendering: true },
+              image: { type: 'jpeg', quality: 0.95 },
+              html2canvas: { scale: 3, useCORS: true, logging: false, backgroundColor: '#ffffff', letterRendering: true },
               jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
             })
             .outputPdf('datauristring')
