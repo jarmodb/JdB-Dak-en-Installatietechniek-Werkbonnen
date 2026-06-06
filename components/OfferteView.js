@@ -847,7 +847,6 @@ export default function OfferteView({ klanten, producten, onWerkbonAangemaakt, m
       })) : [],
     }
     setWerkbonModal(false)
-    wisselStatus(huidig, 'geaccepteerd')
     onWerkbonAangemaakt(werkbonData)
   }
 
