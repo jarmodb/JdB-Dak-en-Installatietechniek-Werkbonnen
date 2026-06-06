@@ -734,6 +734,7 @@ export default function WerkbonApp() {
       {view === 'medewerkers' && (
         <MedewerkersView
           medewerkers={medewerkers}
+          werkbonnen={werkbonnen}
           onVervers={laadMedewerkers}
           onTerug={toonOverzicht}
         />

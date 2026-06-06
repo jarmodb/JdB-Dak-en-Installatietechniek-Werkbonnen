@@ -269,10 +269,11 @@ function AfspraakForm({ form, setForm, klanten, werkbonnen, medewerkers, onOpsla
 }
 
 // ── Medewerkers beheer ────────────────────────────────────────────────
-export function MedewerkersView({ medewerkers, onVervers, onTerug }) {
+export function MedewerkersView({ medewerkers, werkbonnen = [], onVervers, onTerug }) {
   const [pinZichtbaar, setPinZichtbaar] = useState({})
   const [emailBewerken, setEmailBewerken] = useState({})
   const [emailWaarden, setEmailWaarden] = useState({})
+  const [bonnenOpen, setBonnenOpen] = useState({})
 
   function togglePin(id) { setPinZichtbaar(p => ({ ...p, [id]: !p[id] })) }
 
@@ -418,6 +419,38 @@ export function MedewerkersView({ medewerkers, onVervers, onTerug }) {
                       )}
                     </div>
                   </div>
+
+                  {/* Werkbonnen overzicht */}
+                  {(() => {
+                    const gekoppeld = werkbonnen.filter(b => (b.medewerkers || []).includes(m.id))
+                    if (gekoppeld.length === 0) return null
+                    const open = bonnenOpen[m.id]
+                    return (
+                      <div style={{ marginTop: 8 }}>
+                        <button
+                          onClick={() => setBonnenOpen(v => ({ ...v, [m.id]: !v[m.id] }))}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: 12, color: '#C9A227', display: 'flex', alignItems: 'center', gap: 4 }}
+                        >
+                          <span>{open ? '▾' : '▸'}</span>
+                          <span>{gekoppeld.length} werkbon{gekoppeld.length !== 1 ? 'nen' : ''} gekoppeld</span>
+                        </button>
+                        {open && (
+                          <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            {gekoppeld.map(b => (
+                              <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, background: '#fafafa', border: '1px solid #f0f0f0', borderRadius: 6, padding: '5px 10px' }}>
+                                <span style={{ fontWeight: 600, color: '#C9A227', whiteSpace: 'nowrap' }}>{b.nummer}</span>
+                                <span style={{ color: '#555', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.klant_naam || '—'}</span>
+                                <span style={{ color: b.gefactureerd ? '#389E0D' : '#aaa', whiteSpace: 'nowrap', fontSize: 11 }}>
+                                  {b.gefactureerd ? '✓ Gefactureerd' : 'Open'}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
+                </div>
 
                   <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                     <button className="btn btn-licht" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => stelPinIn(m)} title="PIN wijzigen">🔑 PIN</button>
@@ -616,13 +649,45 @@ export default function PlanningView({ klanten, werkbonnen }) {
   async function opslaan() {
     if (!form.titel?.trim()) { alert('Titel is verplicht'); return }
     setBezig(true)
+
+    // Bepaal welke medewerkers nieuw zijn toegevoegd
+    const oudeAfspraak = form.id ? afspraken.find(a => a.id === form.id) : null
+    const oudeMeds = oudeAfspraak ? getMedewerkers(oudeAfspraak) : []
+    const nieuweMeds = form.medewerkers || []
+    const toegevoegd = nieuweMeds.filter(id => !oudeMeds.includes(id))
+
     const { id, aangemaakt, toegewezen_aan, ...data } = form
-    const saveData = { ...data, werkbon_id: data.werkbon_id || null, medewerkers: data.medewerkers || [] }
+    const saveData = { ...data, werkbon_id: data.werkbon_id || null, medewerkers: nieuweMeds }
     if (form.id) {
       await supabase.from('planning').update(saveData).eq('id', form.id)
     } else {
       await supabase.from('planning').insert(saveData)
     }
+
+    // Stuur meldingen naar nieuw toegevoegde medewerkers
+    for (const medId of toegevoegd) {
+      const med = medewerkers.find(m => m.id === medId)
+      if (med?.email && (med.meldingen ?? true)) {
+        fetch('/api/stuur-melding', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'planning',
+            email: med.email,
+            naam: med.naam,
+            titel: form.titel,
+            datum: form.datum,
+            tijdstipVan: form.tijdstip_van,
+            tijdstipTot: form.tijdstip_tot,
+            klantNaam: form.klant_naam,
+            klantAdres: form.klant_adres,
+            token: med.token,
+            origin: window.location.origin,
+          }),
+        }).catch(err => console.warn('Planning melding mislukt:', err))
+      }
+    }
+
     await laadAfspraken(); setBezig(false); setForm(null)
   }
 
@@ -642,7 +707,7 @@ export default function PlanningView({ klanten, werkbonnen }) {
       onOpslaan={opslaan} onVerwijder={verwijder} onAnnuleer={() => setForm(null)} bezig={bezig} />
   }
   if (medView) {
-    return <MedewerkersView medewerkers={medewerkers} onVervers={laadMedewerkers} onTerug={() => setMedView(false)} />
+    return <MedewerkersView medewerkers={medewerkers} werkbonnen={werkbonnen} onVervers={laadMedewerkers} onTerug={() => setMedView(false)} />
   }
 
   return (
