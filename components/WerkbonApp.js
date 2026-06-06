@@ -634,23 +634,28 @@ export default function WerkbonApp() {
 
           <div className="sectie">
             <div className="sectie-titel">Reistijd &amp; kilometers</div>
-            {ritten.length > 0 && (
-              <div className="rit-labels">
-                <span>Datum</span><span>Startadres</span><span>Min</span><span>Km</span><span />
-              </div>
-            )}
             {ritten.map((r, i) => (
-              <div key={i} className="rit-rij">
-                <input type="date" value={r.datum || ''} onChange={e => updateRit(i, 'datum', e.target.value)} />
-                <div className="rit-adres-cel">
-                  <input type="text" value={r.startadres || ''} onChange={e => updateRit(i, 'startadres', e.target.value)} placeholder="Startadres" />
+              <div key={i} className="rit-kaart">
+                <div className="rit-kaart-kop">
+                  <input type="date" value={r.datum || ''} onChange={e => updateRit(i, 'datum', e.target.value)} style={{ flex: 1 }} />
+                  <button className="btn-verwijder" onClick={() => verwijderRit(i)}>×</button>
+                </div>
+                <div className="rit-adres-rij">
+                  <input type="text" value={r.startadres || ''} onChange={e => updateRit(i, 'startadres', e.target.value)} placeholder="Startadres (bijv. jouw thuisadres)" style={{ flex: 1 }} />
                   <button className="rit-route-btn" onClick={() => berekenRoute(i)} title="Bereken km automatisch" disabled={r._bezig}>
-                    {r._bezig ? '⏳' : '🗺️'}
+                    {r._bezig ? '⏳' : '🗺️ Bereken'}
                   </button>
                 </div>
-                <input type="number" value={r.reistijd || ''} onChange={e => updateRit(i, 'reistijd', e.target.value)} placeholder="0" min="0" style={{ textAlign: 'center' }} />
-                <input type="number" value={r.kilometers || ''} onChange={e => updateRit(i, 'kilometers', e.target.value)} placeholder="0" min="0" step="0.1" style={{ textAlign: 'right' }} />
-                <button className="btn-verwijder" onClick={() => verwijderRit(i)}>×</button>
+                <div className="rit-nummers-rij">
+                  <div className="rit-num-veld">
+                    <label>Reistijd (min)</label>
+                    <input type="number" value={r.reistijd || ''} onChange={e => updateRit(i, 'reistijd', e.target.value)} placeholder="0" min="0" />
+                  </div>
+                  <div className="rit-num-veld">
+                    <label>Kilometers</label>
+                    <input type="number" value={r.kilometers || ''} onChange={e => updateRit(i, 'kilometers', e.target.value)} placeholder="0" min="0" step="0.1" />
+                  </div>
+                </div>
               </div>
             ))}
             <button className="btn-toevoegen" onClick={voegRitToe}>+ Rit toevoegen</button>

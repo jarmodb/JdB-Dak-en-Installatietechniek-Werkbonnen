@@ -391,7 +391,7 @@ function WeekView({ refDatum, afspraken, medewerkers, werkbonnen, onDagKlik, onA
                 {DK[dagIdx(dag)]} {dag.getDate()} {MK[dag.getMonth()]}{today ? ' · Vandaag' : ''}
               </span>
               {aps.length > 0 && (
-                <span className="planning-dag-teller">{aps.length} afspraak{aps.length !== 1 ? 'en' : ''} →</span>
+                <span className="planning-dag-teller">{aps.length} {aps.length === 1 ? 'afspraak' : 'afspraken'} →</span>
               )}
             </div>
             {aps.length === 0 ? (

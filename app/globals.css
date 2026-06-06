@@ -675,8 +675,6 @@ tr:last-child td { border-bottom: none; }
 
 /* === RESPONSIVE === */
 @media (max-width: 500px) {
-  .rit-labels { grid-template-columns: 100px 1fr 45px 45px 30px; }
-  .rit-rij { grid-template-columns: 100px 1fr 45px 45px 30px; }
   .werkdag-labels { grid-template-columns: 110px 1fr 60px 30px; }
   .werkdag-rij { grid-template-columns: 110px 1fr 60px 30px; }
   .materiaal-rij { grid-template-columns: 1fr 60px 80px 30px; }
@@ -1044,36 +1042,55 @@ tr:last-child td { border-bottom: none; }
 .med-checkbox-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 
 /* === RITTEN === */
-.rit-labels {
+.rit-kaart {
+  background: var(--grijs-licht);
+  border: 1.5px solid var(--grens);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rit-kaart-kop {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.rit-adres-rij {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.rit-adres-rij input { flex: 1; min-width: 0; }
+.rit-route-btn {
+  background: var(--goud);
+  color: var(--zwart);
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.rit-route-btn:hover { background: var(--goud-donker); color: white; }
+.rit-route-btn:disabled { opacity: .5; cursor: not-allowed; }
+.rit-nummers-rij {
   display: grid;
-  grid-template-columns: 120px 1fr 55px 55px 32px;
-  gap: 6px;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.rit-num-veld label {
+  display: block;
   font-size: 11px;
   font-weight: 700;
   color: var(--grijs);
   text-transform: uppercase;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
-.rit-rij {
-  display: grid;
-  grid-template-columns: 120px 1fr 55px 55px 32px;
-  gap: 6px;
-  align-items: center;
-  margin-bottom: 6px;
-}
-.rit-adres-cel { display: flex; gap: 4px; }
-.rit-adres-cel input { flex: 1; min-width: 0; }
-.rit-route-btn {
-  background: var(--goud-licht);
-  border: 1px solid var(--goud);
-  border-radius: 6px;
-  padding: 0 8px;
-  font-size: 14px;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-.rit-route-btn:disabled { opacity: .5; cursor: not-allowed; }
-.rit-totaal { font-size: 13px; color: var(--grijs); margin-top: 6px; }
+.rit-totaal { font-size: 13px; color: var(--grijs); margin-top: 4px; }
 
 /* === TODOS === */
 .todo-invoer-blok { margin-bottom: 12px; }
