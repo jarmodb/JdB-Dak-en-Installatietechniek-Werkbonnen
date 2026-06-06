@@ -249,6 +249,7 @@ export default function WerkbonApp() {
   const [werkdagen, setWerkdagen] = useState([])
   const [geselecteerdeTypes, setGeselecteerdeTypes] = useState([])
   const [materialen, setMaterialen] = useState([])
+  const [ritten, setRitten] = useState([])
   const [fotos, setFotos] = useState([])
   const [verwijderModal, setVerwijderModal] = useState(false)
   const [bezig, setBezig] = useState(false)
@@ -303,7 +304,7 @@ export default function WerkbonApp() {
     setBewerkModus(false); setHuidigeBon(null)
     setFormulier({ ...leegFormulier(), nummer: genNummer(werkbonnen) })
     setWerkdagen([{ datum: vandaag(), omschrijving: '', uren: '' }])
-    setGeselecteerdeTypes([]); setMaterialen([]); setFotos([])
+    setGeselecteerdeTypes([]); setMaterialen([]); setFotos([]); setRitten([])
   }
 
   function bewerkWerkbon() {
@@ -326,6 +327,7 @@ export default function WerkbonApp() {
     setGeselecteerdeTypes(huidigeBon.type ? huidigeBon.type.split(', ').filter(Boolean) : [])
     setMaterialen(huidigeBon.materialen || [])
     setFotos(huidigeBon.fotos || [])
+    setRitten(huidigeBon.ritten?.length ? huidigeBon.ritten : [])
   }
 
   // ── Formulier ──────────────────────────────────────────────────────
@@ -340,6 +342,7 @@ export default function WerkbonApp() {
       klant_huisnummer: m ? m[2] : '',
       klant_postcode: klant.postcode || '',
       klant_plaats: klant.plaats || '', klant_tel: klant.telefoon || '',
+      klant_email: klant.email || '',
     }))
   }
 
@@ -378,6 +381,39 @@ export default function WerkbonApp() {
   function voegMateriaaltoe() { setMaterialen(m => [...m, { omschrijving: '', aantal: '', eenheid: 'stuk', prijs: '' }]) }
   function updateMateriaal(idx, key, val) { setMaterialen(m => m.map((item, i) => i === idx ? { ...item, [key]: val } : item)) }
   function verwijderMateriaal(idx) { setMaterialen(m => m.filter((_, i) => i !== idx)) }
+
+  // Ritten
+  function voegRitToe() { setRitten(r => [...r, { datum: vandaag(), startadres: '', reistijd: '', kilometers: '' }]) }
+  function updateRit(idx, key, val) { setRitten(r => r.map((item, i) => i === idx ? { ...item, [key]: val } : item)) }
+  function verwijderRit(idx) { setRitten(r => r.filter((_, i) => i !== idx)) }
+
+  async function berekenRoute(idx) {
+    const rit = ritten[idx]
+    const eindAdres = [formulier.klant_straat, formulier.klant_huisnummer, formulier.klant_postcode, formulier.klant_plaats].filter(Boolean).join(' ')
+    if (!rit.startadres?.trim() || !eindAdres.trim()) { alert('Vul eerst start- en eindadres in'); return }
+    updateRit(idx, '_bezig', true)
+    try {
+      async function geocodeer(adres) {
+        const res = await fetch(`https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?q=${encodeURIComponent(adres)}&fl=centroide_ll&rows=1`)
+        const data = await res.json()
+        const coord = data.response?.docs?.[0]?.centroide_ll
+        if (!coord) return null
+        const [lon, lat] = coord.replace('POINT(', '').replace(')', '').split(' ')
+        return { lon, lat }
+      }
+      const [start, eind] = await Promise.all([geocodeer(rit.startadres), geocodeer(eindAdres)])
+      if (!start || !eind) { alert('Adres niet gevonden via PDOK'); updateRit(idx, '_bezig', false); return }
+      const routeRes = await fetch(`https://router.project-osrm.org/route/v1/driving/${start.lon},${start.lat};${eind.lon},${eind.lat}?overview=false`)
+      const routeData = await routeRes.json()
+      const afstand = routeData.routes?.[0]?.distance
+      const duur = routeData.routes?.[0]?.duration
+      if (afstand) {
+        updateRit(idx, 'kilometers', Math.round(afstand / 100) / 10)
+        updateRit(idx, 'reistijd', Math.round(duur / 60))
+      } else { alert('Route niet gevonden') }
+    } catch (e) { alert('Fout bij routeberekening: ' + e.message) }
+    updateRit(idx, '_bezig', false)
+  }
   function productSelecteren(idx, product) {
     setMaterialen(m => m.map((item, i) => i === idx ? { ...item, omschrijving: product.naam, prijs: product.prijs, eenheid: product.eenheid || 'stuk' } : item))
   }
@@ -407,7 +443,7 @@ export default function WerkbonApp() {
       klant_naam: formulier.klant_naam,
       klant_adres: [formulier.klant_straat, formulier.klant_huisnummer].filter(Boolean).join(' '),
       klant_postcode: formulier.klant_postcode, klant_plaats: formulier.klant_plaats, klant_tel: formulier.klant_tel, klant_email: formulier.klant_email,
-      reistijd: parseFloat(formulier.reistijd) || 0, kilometers: parseFloat(formulier.kilometers) || 0, start_adres: formulier.start_adres,
+      ritten: ritten.map(({ _bezig, ...r }) => ({ ...r, reistijd: parseFloat(r.reistijd) || 0, kilometers: parseFloat(r.kilometers) || 0 })),
       omschrijving: formulier.omschrijving, uren: totalen.totalUren, uurtarief: parseFloat(formulier.uurtarief) || 0,
       werkdagen: geldigeWerkdagen, materialen: geldigeMat, fotos,
       notities: formulier.notities, arbeid: totalen.arbeid, mat_totaal: totalen.mat_totaal,
@@ -598,13 +634,31 @@ export default function WerkbonApp() {
 
           <div className="sectie">
             <div className="sectie-titel">Reistijd &amp; kilometers</div>
-            <div className="veld"><label>Startadres</label><input type="text" value={formulier.start_adres} onChange={e => setVeld('start_adres', e.target.value)} placeholder="Bijv. jouw thuisadres" /></div>
-            <div className="rij-2">
-              <div className="veld"><label>Reistijd (min)</label><input type="number" value={formulier.reistijd} onChange={e => setVeld('reistijd', e.target.value)} placeholder="0" min="0" /></div>
-              <div className="veld"><label>Kilometers</label><input type="number" value={formulier.kilometers} onChange={e => setVeld('kilometers', e.target.value)} placeholder="0" min="0" step="0.1" /></div>
-            </div>
-            {formulier.start_adres && formulier.klant_postcode && (
-              <a href={`https://maps.google.com/?saddr=${encodeURIComponent(formulier.start_adres)}&daddr=${encodeURIComponent([formulier.klant_straat, formulier.klant_huisnummer, formulier.klant_postcode, formulier.klant_plaats].filter(Boolean).join(' '))}&dirflg=d`} target="_blank" rel="noreferrer" className="maps-knop" style={{ display: 'inline-flex', marginTop: 8 }}>🗺️ Route berekenen</a>
+            {ritten.length > 0 && (
+              <div className="rit-labels">
+                <span>Datum</span><span>Startadres</span><span>Min</span><span>Km</span><span />
+              </div>
+            )}
+            {ritten.map((r, i) => (
+              <div key={i} className="rit-rij">
+                <input type="date" value={r.datum || ''} onChange={e => updateRit(i, 'datum', e.target.value)} />
+                <div className="rit-adres-cel">
+                  <input type="text" value={r.startadres || ''} onChange={e => updateRit(i, 'startadres', e.target.value)} placeholder="Startadres" />
+                  <button className="rit-route-btn" onClick={() => berekenRoute(i)} title="Bereken km automatisch" disabled={r._bezig}>
+                    {r._bezig ? '⏳' : '🗺️'}
+                  </button>
+                </div>
+                <input type="number" value={r.reistijd || ''} onChange={e => updateRit(i, 'reistijd', e.target.value)} placeholder="0" min="0" style={{ textAlign: 'center' }} />
+                <input type="number" value={r.kilometers || ''} onChange={e => updateRit(i, 'kilometers', e.target.value)} placeholder="0" min="0" step="0.1" style={{ textAlign: 'right' }} />
+                <button className="btn-verwijder" onClick={() => verwijderRit(i)}>×</button>
+              </div>
+            ))}
+            <button className="btn-toevoegen" onClick={voegRitToe}>+ Rit toevoegen</button>
+            {ritten.length > 0 && (
+              <div className="rit-totaal">
+                Totaal: <strong>{ritten.reduce((s, r) => s + (parseFloat(r.kilometers) || 0), 0).toFixed(1)} km</strong>
+                {' · '}<strong>{ritten.reduce((s, r) => s + (parseFloat(r.reistijd) || 0), 0)} min</strong>
+              </div>
             )}
           </div>
 
@@ -804,13 +858,22 @@ function BonAfdruk({ bon }) {
           </div>
         </div>
 
-        {(bon.reistijd > 0 || bon.kilometers > 0) && (
+        {bon.ritten?.length > 0 && (
           <div className="bon-sectie">
             <div className="bon-sectie-titel">Reistijd &amp; kilometers</div>
-            <div style={{ display: 'flex', gap: 24, fontSize: 14 }}>
-              {bon.reistijd > 0 && <span>🕐 {bon.reistijd} min reistijd</span>}
-              {bon.kilometers > 0 && <span>🚗 {bon.kilometers} km</span>}
-            </div>
+            <table>
+              <thead><tr><th>Datum</th><th>Startadres</th><th style={{textAlign:'center'}}>Reistijd</th><th style={{textAlign:'right'}}>Km</th></tr></thead>
+              <tbody>
+                {bon.ritten.map((r, i) => (
+                  <tr key={i}>
+                    <td>{r.datum ? `${r.datum.split('-')[2]}-${r.datum.split('-')[1]}-${r.datum.split('-')[0]}` : ''}</td>
+                    <td>{r.startadres || '–'}</td>
+                    <td style={{textAlign:'center'}}>{r.reistijd > 0 ? `${r.reistijd} min` : '–'}</td>
+                    <td style={{textAlign:'right'}}>{r.kilometers > 0 ? `${r.kilometers} km` : '–'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
         {fotos.length > 0 && <div className="bon-sectie"><div className="bon-sectie-titel">Foto's ({fotos.length})</div><div className="bon-foto-lijst">{fotos.map((f, i) => <a key={i} href={f.shareUrl} target="_blank" rel="noreferrer" className="bon-foto-link">📷 {f.naam}</a>)}</div></div>}

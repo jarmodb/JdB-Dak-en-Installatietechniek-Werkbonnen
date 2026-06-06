@@ -675,6 +675,8 @@ tr:last-child td { border-bottom: none; }
 
 /* === RESPONSIVE === */
 @media (max-width: 500px) {
+  .rit-labels { grid-template-columns: 100px 1fr 45px 45px 30px; }
+  .rit-rij { grid-template-columns: 100px 1fr 45px 45px 30px; }
   .werkdag-labels { grid-template-columns: 110px 1fr 60px 30px; }
   .werkdag-rij { grid-template-columns: 110px 1fr 60px 30px; }
   .materiaal-rij { grid-template-columns: 1fr 60px 80px 30px; }
@@ -1041,11 +1043,44 @@ tr:last-child td { border-bottom: none; }
 .medewerker-checkbox-optie.geselecteerd { font-weight: 700; }
 .med-checkbox-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 
+/* === RITTEN === */
+.rit-labels {
+  display: grid;
+  grid-template-columns: 120px 1fr 55px 55px 32px;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--grijs);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.rit-rij {
+  display: grid;
+  grid-template-columns: 120px 1fr 55px 55px 32px;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.rit-adres-cel { display: flex; gap: 4px; }
+.rit-adres-cel input { flex: 1; min-width: 0; }
+.rit-route-btn {
+  background: var(--goud-licht);
+  border: 1px solid var(--goud);
+  border-radius: 6px;
+  padding: 0 8px;
+  font-size: 14px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.rit-route-btn:disabled { opacity: .5; cursor: not-allowed; }
+.rit-totaal { font-size: 13px; color: var(--grijs); margin-top: 6px; }
+
 /* === TODOS === */
-.todo-invoer {
+.todo-invoer-blok { margin-bottom: 12px; }
+.todo-invoer-rij {
   display: flex;
   gap: 8px;
-  padding: 0 0 12px;
+  margin-bottom: 8px;
 }
 .todo-input {
   flex: 1;
@@ -1056,31 +1091,46 @@ tr:last-child td { border-bottom: none; }
   outline: none;
 }
 .todo-input:focus { border-color: var(--goud); }
-.todo-filter {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 12px;
-}
-.todo-filter-btn {
+.todo-invoer-opties { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.todo-prio-kiezer { display: flex; gap: 4px; }
+.todo-prio-knop {
   background: white;
   border: 1.5px solid var(--grens);
-  border-radius: 20px;
-  padding: 5px 14px;
-  font-size: 13px;
+  border-radius: 12px;
+  padding: 4px 10px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   color: var(--grijs);
   transition: all .15s;
 }
-.todo-filter-btn.actief {
-  background: var(--goud);
-  border-color: var(--goud);
-  color: var(--zwart);
+.todo-med-select {
+  border: 1.5px solid var(--grens);
+  border-radius: 8px;
+  padding: 5px 8px;
+  font-size: 13px;
+  background: white;
+  outline: none;
 }
+.todo-filters { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.todo-filter { display: flex; gap: 6px; flex-wrap: wrap; }
+.todo-filter-btn {
+  background: white;
+  border: 1.5px solid var(--grens);
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--grijs);
+  transition: all .15s;
+  white-space: nowrap;
+}
+.todo-filter-btn.actief { background: var(--goud); border-color: var(--goud); color: var(--zwart); }
 .todo-lijst { display: flex; flex-direction: column; gap: 6px; }
 .todo-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   background: white;
   border-radius: 8px;
@@ -1088,26 +1138,29 @@ tr:last-child td { border-bottom: none; }
   box-shadow: var(--schaduw);
   transition: opacity .2s;
 }
-.todo-item.gedaan { opacity: .6; }
+.todo-item.gedaan { opacity: .55; }
 .todo-check {
-  width: 24px; height: 24px;
+  width: 24px; height: 24px; flex-shrink: 0; margin-top: 1px;
   border-radius: 50%;
   border: 2px solid var(--goud);
-  background: none;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--goud);
+  background: none; cursor: pointer;
+  font-size: 13px; font-weight: 700; color: var(--goud);
   display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
   transition: background .15s;
 }
 .todo-item.gedaan .todo-check { background: var(--goud); color: white; }
-.todo-tekst {
-  flex: 1;
-  font-size: 15px;
+.todo-inhoud { flex: 1; min-width: 0; }
+.todo-tekst { font-size: 15px; display: block; }
+.todo-item.gedaan .todo-tekst { text-decoration: line-through; color: var(--grijs); }
+.todo-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 5px; }
+.todo-prio-badge {
+  border: 1px solid; border-radius: 10px;
+  padding: 2px 8px; font-size: 11px; font-weight: 700;
+  cursor: pointer; transition: opacity .15s;
 }
-.todo-item.gedaan .todo-tekst {
-  text-decoration: line-through;
-  color: var(--grijs);
+.todo-prio-badge:hover { opacity: .75; }
+.todo-med-badge {
+  display: inline-flex; align-items: center;
+  border: 1px solid; border-radius: 10px;
+  padding: 2px 8px; font-size: 11px; font-weight: 600;
 }

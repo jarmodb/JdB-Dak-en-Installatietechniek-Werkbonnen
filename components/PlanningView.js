@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase'
 const MN = ['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December']
 const MK = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec']
 const DK = ['Ma','Di','Wo','Do','Vr','Za','Zo']
+const DL = ['Maandag','Dinsdag','Woensdag','Donderdag','Vrijdag','Zaterdag','Zondag']
 const KLEUREN_OPTIES = ['#C9A227','#E8A020','#D4380D','#096DD9','#389E0D','#722ED1','#08979C']
 
 // ── Datum helpers ────────────────────────────────────────────────────
@@ -62,7 +63,7 @@ function periodeLabel(viewMode, refDatum) {
       : `${ma.getDate()} ${MK[ma.getMonth()]} – ${zo.getDate()} ${MK[zo.getMonth()]} ${zo.getFullYear()}`
     return `Week ${wn} · ${range}`
   }
-  return `${DK[dagIdx(refDatum)]}dag ${refDatum.getDate()} ${MN[refDatum.getMonth()]} ${refDatum.getFullYear()}`
+  return `${DL[dagIdx(refDatum)]} ${refDatum.getDate()} ${MN[refDatum.getMonth()]} ${refDatum.getFullYear()}`
 }
 
 function periodeVerschuif(viewMode, refDatum, richting) {
