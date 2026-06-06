@@ -102,7 +102,7 @@ function AC({ waarde, opties, onChange, onSelect, placeholder }) {
 }
 
 // ── Afspraak kaart ────────────────────────────────────────────────────
-export function AfspraakKaart({ a, medewerkers, werkbonnen, onClick, readOnly }) {
+export function AfspraakKaart({ a, medewerkers, werkbonnen, onClick, onBonKlik, readOnly }) {
   const meds = medewerkers?.filter(m => getMedewerkers(a).includes(m.id)) || []
   const bon = werkbonnen?.find(b => b.id === a.werkbon_id)
   const kleur = a.kleur || '#C9A227'
@@ -135,7 +135,16 @@ export function AfspraakKaart({ a, medewerkers, werkbonnen, onClick, readOnly })
         </div>
       )}
       {a.omschrijving && <div className="afspraak-omschrijving">{a.omschrijving}</div>}
-      {bon && <div className="afspraak-bon">📋 {bon.nummer}</div>}
+      {bon && (
+        <div
+          className="afspraak-bon"
+          onClick={onBonKlik ? e => { e.stopPropagation(); onBonKlik(bon) } : undefined}
+          style={onBonKlik ? { cursor: 'pointer', textDecoration: 'underline', color: '#C9A227' } : undefined}
+          title={onBonKlik ? 'Bekijk werkbon' : undefined}
+        >
+          📋 {bon.nummer}{bon.klant_naam ? ` · ${bon.klant_naam}` : ''}
+        </div>
+      )}
       {a.voor_iedereen && <div className="afspraak-iedereen-badge">📢 Iedereen</div>}
     </div>
   )
@@ -512,7 +521,7 @@ function MaandView({ refDatum, afspraken, onDagKlik }) {
 }
 
 // ── Week view ─────────────────────────────────────────────────────────
-function WeekView({ refDatum, afspraken, medewerkers, werkbonnen, onDagKlik, onAfspraakKlik, readOnly }) {
+function WeekView({ refDatum, afspraken, medewerkers, werkbonnen, onDagKlik, onAfspraakKlik, onBonKlik, readOnly }) {
   const ma = maandagVan(refDatum)
   const dagen = weekDagenVan(ma)
 
@@ -536,7 +545,7 @@ function WeekView({ refDatum, afspraken, medewerkers, werkbonnen, onDagKlik, onA
             ) : (
               aps.map(a => (
                 <AfspraakKaart key={a.id} a={a} medewerkers={medewerkers} werkbonnen={werkbonnen}
-                  onClick={() => onAfspraakKlik(a)} readOnly={readOnly} />
+                  onClick={() => onAfspraakKlik(a)} onBonKlik={onBonKlik} readOnly={readOnly} />
               ))
             )}
           </div>
@@ -547,7 +556,7 @@ function WeekView({ refDatum, afspraken, medewerkers, werkbonnen, onDagKlik, onA
 }
 
 // ── Dag view ──────────────────────────────────────────────────────────
-function DagView({ refDatum, afspraken, medewerkers, werkbonnen, onAfspraakKlik, readOnly }) {
+function DagView({ refDatum, afspraken, medewerkers, werkbonnen, onAfspraakKlik, onBonKlik, readOnly }) {
   const aps = afspraken.filter(a => a.datum === ds(refDatum))
   return (
     <div className="planning-dag-lijst" style={{ padding: '8px 12px' }}>
@@ -558,7 +567,7 @@ function DagView({ refDatum, afspraken, medewerkers, werkbonnen, onAfspraakKlik,
       ) : (
         aps.map(a => (
           <AfspraakKaart key={a.id} a={a} medewerkers={medewerkers} werkbonnen={werkbonnen}
-            onClick={() => onAfspraakKlik(a)} readOnly={readOnly} />
+            onClick={() => onAfspraakKlik(a)} onBonKlik={onBonKlik} readOnly={readOnly} />
         ))
       )}
     </div>
@@ -607,7 +616,7 @@ function PlanningHeader({ viewMode, setViewMode, refDatum, setRefDatum, medewerk
 }
 
 // ── Hoofd PlanningView (admin) ────────────────────────────────────────
-export default function PlanningView({ klanten, werkbonnen }) {
+export default function PlanningView({ klanten, werkbonnen, onWerkbonNavigeer }) {
   const [afspraken, setAfspraken] = useState([])
   const [medewerkers, setMedewerkers] = useState([])
   const [viewMode, setViewMode] = useState('week')
@@ -714,15 +723,15 @@ export default function PlanningView({ klanten, werkbonnen }) {
       <PlanningHeader viewMode={viewMode} setViewMode={setViewMode} refDatum={refDatum} setRefDatum={setRefDatum}
         medewerkers={medewerkers} filterMed={filterMed} setFilterMed={setFilterMed} onMedewerkers={() => setMedView(true)} />
       {viewMode === 'maand' && <MaandView refDatum={refDatum} afspraken={zichtbareAfspraken} onDagKlik={dagKlik} />}
-      {viewMode === 'week' && <WeekView refDatum={refDatum} afspraken={zichtbareAfspraken} medewerkers={medewerkers} werkbonnen={werkbonnen} onDagKlik={dagKlik} onAfspraakKlik={afspraakKlik} />}
-      {viewMode === 'dag' && <DagView refDatum={refDatum} afspraken={zichtbareAfspraken} medewerkers={medewerkers} werkbonnen={werkbonnen} onAfspraakKlik={afspraakKlik} />}
+      {viewMode === 'week' && <WeekView refDatum={refDatum} afspraken={zichtbareAfspraken} medewerkers={medewerkers} werkbonnen={werkbonnen} onDagKlik={dagKlik} onAfspraakKlik={afspraakKlik} onBonKlik={onWerkbonNavigeer} />}
+      {viewMode === 'dag' && <DagView refDatum={refDatum} afspraken={zichtbareAfspraken} medewerkers={medewerkers} werkbonnen={werkbonnen} onAfspraakKlik={afspraakKlik} onBonKlik={onWerkbonNavigeer} />}
       <button className="fab fab-boven-nav" onClick={() => setForm(leegForm())}>+</button>
     </div>
   )
 }
 
 // ── Read-only view (personeelslink) ───────────────────────────────────
-export function PlanningReadOnly({ medewerkerId, initialAfspraken }) {
+export function PlanningReadOnly({ medewerkerId, initialAfspraken, werkbonnen = [], onBonKlik }) {
   const [afspraken, setAfspraken] = useState(initialAfspraken || [])
   const [viewMode, setViewMode] = useState('week')
   const [refDatum, setRefDatum] = useState(new Date())
@@ -747,8 +756,8 @@ export function PlanningReadOnly({ medewerkerId, initialAfspraken }) {
       <PlanningHeader viewMode={viewMode} setViewMode={setViewMode} refDatum={refDatum} setRefDatum={setRefDatum}
         medewerkers={[]} filterMed="" setFilterMed={() => {}} onMedewerkers={() => {}} readOnly />
       {viewMode === 'maand' && <MaandView refDatum={refDatum} afspraken={mijn} onDagKlik={dagKlik} />}
-      {viewMode === 'week' && <WeekView refDatum={refDatum} afspraken={mijn} medewerkers={[]} werkbonnen={[]} onDagKlik={dagKlik} onAfspraakKlik={() => {}} readOnly />}
-      {viewMode === 'dag' && <DagView refDatum={refDatum} afspraken={mijn} medewerkers={[]} werkbonnen={[]} onAfspraakKlik={() => {}} readOnly />}
+      {viewMode === 'week' && <WeekView refDatum={refDatum} afspraken={mijn} medewerkers={[]} werkbonnen={werkbonnen} onDagKlik={dagKlik} onAfspraakKlik={() => {}} onBonKlik={onBonKlik} readOnly />}
+      {viewMode === 'dag' && <DagView refDatum={refDatum} afspraken={mijn} medewerkers={[]} werkbonnen={werkbonnen} onAfspraakKlik={() => {}} onBonKlik={onBonKlik} readOnly />}
     </div>
   )
 }

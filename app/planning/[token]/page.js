@@ -116,6 +116,7 @@ export default function PlanningDeelPage() {
   const [medewerker, setMedewerker] = useState(null)
   const [afspraken, setAfspraken] = useState([])
   const [todos, setTodos] = useState([])
+  const [werkbonnen, setWerkbonnen] = useState([])
   const [actieveTab, setActieveTab] = useState('planning')
   // Werkbon navigatie — centraal beheerd zodat er maar één popstate listener is
   const [werkbonView, setWerkbonView] = useState('lijst')   // lijst | detail | formulier
@@ -186,12 +187,14 @@ export default function PlanningDeelPage() {
 
   async function laadData(link) {
     document.title = `JdB – ${link.naam}`
-    const [{ data: ap }, { data: td }] = await Promise.all([
+    const [{ data: ap }, { data: td }, { data: wb }] = await Promise.all([
       supabase.from('planning').select('*').order('datum').order('tijdstip_van', { nullsFirst: true }),
       supabase.from('todos').select('*').eq('medewerker_id', link.id).eq('gedaan', false).order('aangemaakt'),
+      supabase.from('werkbonnen').select('*').order('aangemaakt', { ascending: false }),
     ])
     setAfspraken(ap || [])
     setTodos(td || [])
+    setWerkbonnen(wb || [])
 
     // Real-time todos
     supabase.channel('todo-ro-sync')
@@ -253,7 +256,17 @@ export default function PlanningDeelPage() {
       </header>
 
       {actieveTab === 'planning' && (
-        <PlanningReadOnly medewerkerId={medewerker?.id} initialAfspraken={afspraken} />
+        <PlanningReadOnly
+          medewerkerId={medewerker?.id}
+          initialAfspraken={afspraken}
+          werkbonnen={werkbonnen}
+          onBonKlik={bon => {
+            window.history.pushState({ nav: 'werkbon-detail' }, '')
+            setHuidigeBon(bon)
+            setWerkbonView('detail')
+            setActieveTab('werkbonnen')
+          }}
+        />
       )}
       {actieveTab === 'taken' && (
         <TakenTab medewerker={medewerker} todos={todos} setTodos={setTodos} />

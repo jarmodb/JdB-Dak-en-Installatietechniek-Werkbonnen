@@ -725,7 +725,7 @@ export default function WerkbonApp() {
       {view === 'producten' && <ProductenView producten={producten} onVervers={laadProducten} />}
 
       {/* ── PLANNING ── */}
-      {view === 'planning' && <PlanningView klanten={klanten} werkbonnen={werkbonnen} />}
+      {view === 'planning' && <PlanningView klanten={klanten} werkbonnen={werkbonnen} onWerkbonNavigeer={bon => toonDetail(bon)} />}
 
       {/* ── TODOS ── */}
       {view === 'todos' && <TodoView />}
