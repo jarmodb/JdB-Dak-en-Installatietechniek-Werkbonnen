@@ -162,7 +162,7 @@ export default function MedewerkerWerkbonView({ medewerker }) {
         {laden ? (
           <div className="laden">Laden...</div>
         ) : werkbonnen.length === 0 ? (
-          <div className="leeg"><p>Nog geen werkbonnen.<br />Tik op <strong>+</strong> om er een aan te maken.</p></div>
+          <div className="leeg"><p>Geen werkbonnen toegewezen.<br />Je leidinggevende wijst werkbonnen aan je toe.</p></div>
         ) : (
           <div className="bon-lijst">
             {werkbonnen.map(bon => (
@@ -179,7 +179,6 @@ export default function MedewerkerWerkbonView({ medewerker }) {
             ))}
           </div>
         )}
-        <button className="fab" onClick={nieuweWerkbon}>+</button>
       </div>
     )
   }
