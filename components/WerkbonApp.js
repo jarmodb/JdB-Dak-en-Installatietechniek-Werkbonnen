@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { genereerUBL } from '@/lib/ubl'
 import { msLogin, msLogout, msGetAccount, uploadFotoNaarOneDrive } from '@/lib/onedrive'
 import PlanningView from '@/components/PlanningView'
+import TodoView from '@/components/TodoView'
 
 const WERK_TYPES = ['Gas', 'Water', 'Verwarming', 'Sanitair', 'Riolering', 'Dakbedekking', 'Zinkwerken', 'Graafwerkzaamheden']
 const EENHEDEN = ['stuk', 'm²', 'meter', 'liter', 'kg', 'uur', 'set', 'rol', 'doos', 'pak']
@@ -31,7 +32,7 @@ function bereken(werkdagen, uurtarief, materialen) {
 }
 
 function leegFormulier() {
-  return { nummer: '', datum: vandaag(), klant_naam: '', klant_straat: '', klant_huisnummer: '', klant_postcode: '', klant_plaats: '', klant_tel: '', omschrijving: '', uurtarief: '', notities: '' }
+  return { nummer: '', datum: vandaag(), klant_naam: '', klant_straat: '', klant_huisnummer: '', klant_postcode: '', klant_plaats: '', klant_tel: '', klant_email: '', omschrijving: '', uurtarief: '', notities: '', reistijd: '', kilometers: '', start_adres: '' }
 }
 
 // ── Autocomplete component ───────────────────────────────────────────
@@ -132,7 +133,10 @@ function KlantenView({ klanten, onVervers }) {
           <div className="veld"><label>Straat</label><input type="text" value={form.straat || ''} onChange={e => setVeld('straat', e.target.value)} placeholder="Automatisch ingevuld" /></div>
           <div className="veld"><label>Plaats</label><input type="text" value={form.plaats || ''} onChange={e => setVeld('plaats', e.target.value)} placeholder="Automatisch ingevuld" /></div>
         </div>
-        <div className="veld"><label>Telefoon</label><input type="tel" value={form.telefoon || ''} onChange={e => setVeld('telefoon', e.target.value)} placeholder="06-12345678" /></div>
+        <div className="rij-2">
+          <div className="veld"><label>Telefoon</label><input type="tel" value={form.telefoon || ''} onChange={e => setVeld('telefoon', e.target.value)} placeholder="06-12345678" /></div>
+          <div className="veld"><label>E-mail</label><input type="email" value={form.email || ''} onChange={e => setVeld('email', e.target.value)} placeholder="naam@email.nl" /></div>
+        </div>
       </div>
     </div>
   )
@@ -155,7 +159,7 @@ function KlantenView({ klanten, onVervers }) {
           ))}
         </div>
       )}
-      <button className="fab fab-boven-nav" onClick={() => setForm({ naam: '', straat: '', huisnummer: '', postcode: '', plaats: '', telefoon: '' })}>+</button>
+      <button className="fab fab-boven-nav" onClick={() => setForm({ naam: '', straat: '', huisnummer: '', postcode: '', plaats: '', telefoon: '', email: '' })}>+</button>
     </div>
   )
 }
@@ -314,7 +318,9 @@ export default function WerkbonApp() {
       klant_huisnummer: adresM ? adresM[2] : '',
       klant_postcode: huidigeBon.klant_postcode || '',
       klant_plaats: huidigeBon.klant_plaats || '', klant_tel: huidigeBon.klant_tel || '',
+      klant_email: huidigeBon.klant_email || '',
       omschrijving: huidigeBon.omschrijving || '', uurtarief: huidigeBon.uurtarief || '', notities: huidigeBon.notities || '',
+      reistijd: huidigeBon.reistijd || '', kilometers: huidigeBon.kilometers || '', start_adres: huidigeBon.start_adres || '',
     })
     setWerkdagen(huidigeBon.werkdagen?.length ? huidigeBon.werkdagen : [{ datum: vandaag(), omschrijving: '', uren: '' }])
     setGeselecteerdeTypes(huidigeBon.type ? huidigeBon.type.split(', ').filter(Boolean) : [])
@@ -400,7 +406,8 @@ export default function WerkbonApp() {
       nummer: formulier.nummer, datum: formulier.datum, type: geselecteerdeTypes.join(', '),
       klant_naam: formulier.klant_naam,
       klant_adres: [formulier.klant_straat, formulier.klant_huisnummer].filter(Boolean).join(' '),
-      klant_postcode: formulier.klant_postcode, klant_plaats: formulier.klant_plaats, klant_tel: formulier.klant_tel,
+      klant_postcode: formulier.klant_postcode, klant_plaats: formulier.klant_plaats, klant_tel: formulier.klant_tel, klant_email: formulier.klant_email,
+      reistijd: parseFloat(formulier.reistijd) || 0, kilometers: parseFloat(formulier.kilometers) || 0, start_adres: formulier.start_adres,
       omschrijving: formulier.omschrijving, uren: totalen.totalUren, uurtarief: parseFloat(formulier.uurtarief) || 0,
       werkdagen: geldigeWerkdagen, materialen: geldigeMat, fotos,
       notities: formulier.notities, arbeid: totalen.arbeid, mat_totaal: totalen.mat_totaal,
@@ -444,8 +451,8 @@ export default function WerkbonApp() {
   }
 
   const totalen = bereken(werkdagen, formulier.uurtarief, materialen)
-  const toonNav = ['overzicht', 'klanten', 'producten', 'planning'].includes(view)
-  const headerTitel = view === 'overzicht' ? 'JdB Werkbonnen' : view === 'klanten' ? 'Klanten' : view === 'producten' ? 'Producten' : view === 'planning' ? 'Planning' : view === 'formulier' ? (bewerkModus ? 'Bewerken' : 'Nieuwe werkbon') : huidigeBon?.nummer || ''
+  const toonNav = ['overzicht', 'klanten', 'producten', 'planning', 'todos'].includes(view)
+  const headerTitel = view === 'overzicht' ? 'JdB Werkbonnen' : view === 'klanten' ? 'Klanten' : view === 'producten' ? 'Producten' : view === 'planning' ? 'Planning' : view === 'todos' ? 'Taken' : view === 'formulier' ? (bewerkModus ? 'Bewerken' : 'Nieuwe werkbon') : huidigeBon?.nummer || ''
 
   return (
     <>
@@ -498,6 +505,9 @@ export default function WerkbonApp() {
 
       {/* ── PLANNING ── */}
       {view === 'planning' && <PlanningView klanten={klanten} werkbonnen={werkbonnen} />}
+
+      {/* ── TODOS ── */}
+      {view === 'todos' && <TodoView />}
 
       {/* ── FORMULIER ── */}
       {view === 'formulier' && (
@@ -557,7 +567,10 @@ export default function WerkbonApp() {
               <div className="veld"><label>Straat</label><input type="text" value={formulier.klant_straat} onChange={e => setVeld('klant_straat', e.target.value)} onBlur={() => adresOpzoeken('straat')} placeholder="Automatisch ingevuld" /></div>
               <div className="veld"><label>Plaats</label><input type="text" value={formulier.klant_plaats} onChange={e => setVeld('klant_plaats', e.target.value)} onBlur={() => adresOpzoeken('straat')} placeholder="Automatisch ingevuld" /></div>
             </div>
-            <div className="veld"><label>Telefoon</label><input type="tel" value={formulier.klant_tel} onChange={e => setVeld('klant_tel', e.target.value)} placeholder="06-12345678" /></div>
+            <div className="rij-2">
+              <div className="veld"><label>Telefoon</label><input type="tel" value={formulier.klant_tel} onChange={e => setVeld('klant_tel', e.target.value)} placeholder="06-12345678" /></div>
+              <div className="veld"><label>E-mail</label><input type="email" value={formulier.klant_email} onChange={e => setVeld('klant_email', e.target.value)} placeholder="naam@email.nl" /></div>
+            </div>
           </div>
 
           <div className="sectie">
@@ -581,6 +594,18 @@ export default function WerkbonApp() {
             <button className="btn-toevoegen" onClick={voegWerkdagToe}>+ Dag toevoegen</button>
             {totalen.totalUren > 0 && <div className="uren-totaal">Totaal: <strong>{totalen.totalUren} uur</strong></div>}
             <div className="veld" style={{ marginTop: 12 }}><label>Uurtarief (€)</label><input type="number" value={formulier.uurtarief} onChange={e => setVeld('uurtarief', e.target.value)} placeholder="0.00" min="0" step="0.50" /></div>
+          </div>
+
+          <div className="sectie">
+            <div className="sectie-titel">Reistijd &amp; kilometers</div>
+            <div className="veld"><label>Startadres</label><input type="text" value={formulier.start_adres} onChange={e => setVeld('start_adres', e.target.value)} placeholder="Bijv. jouw thuisadres" /></div>
+            <div className="rij-2">
+              <div className="veld"><label>Reistijd (min)</label><input type="number" value={formulier.reistijd} onChange={e => setVeld('reistijd', e.target.value)} placeholder="0" min="0" /></div>
+              <div className="veld"><label>Kilometers</label><input type="number" value={formulier.kilometers} onChange={e => setVeld('kilometers', e.target.value)} placeholder="0" min="0" step="0.1" /></div>
+            </div>
+            {formulier.start_adres && formulier.klant_postcode && (
+              <a href={`https://maps.google.com/?saddr=${encodeURIComponent(formulier.start_adres)}&daddr=${encodeURIComponent([formulier.klant_straat, formulier.klant_huisnummer, formulier.klant_postcode, formulier.klant_plaats].filter(Boolean).join(' '))}&dirflg=d`} target="_blank" rel="noreferrer" className="maps-knop" style={{ display: 'inline-flex', marginTop: 8 }}>🗺️ Route berekenen</a>
+            )}
           </div>
 
           <div className="sectie">
@@ -703,6 +728,9 @@ export default function WerkbonApp() {
           <button className={view === 'planning' ? 'actief' : ''} onClick={() => navigeer('planning')}>
             <span className="nav-icon">📅</span><span className="nav-label">Planning</span>
           </button>
+          <button className={view === 'todos' ? 'actief' : ''} onClick={() => navigeer('todos')}>
+            <span className="nav-icon">✅</span><span className="nav-label">Taken</span>
+          </button>
         </nav>
       )}
     </>
@@ -746,6 +774,7 @@ function BonAfdruk({ bon }) {
             {bon.klant_adres && <p>{bon.klant_adres}</p>}
             {(bon.klant_postcode || bon.klant_plaats) && <p>{bon.klant_postcode} {bon.klant_plaats}</p>}
             {bon.klant_tel && <p>📞 {bon.klant_tel}</p>}
+            {bon.klant_email && <p>✉️ {bon.klant_email}</p>}
             {(bon.klant_adres || bon.klant_plaats) && (
               <a href={`https://maps.google.com/?q=${encodeURIComponent([bon.klant_adres, bon.klant_postcode, bon.klant_plaats].filter(Boolean).join(' '))}`} target="_blank" rel="noreferrer" className="maps-knop">🗺️ Navigeer</a>
             )}
@@ -775,6 +804,15 @@ function BonAfdruk({ bon }) {
           </div>
         </div>
 
+        {(bon.reistijd > 0 || bon.kilometers > 0) && (
+          <div className="bon-sectie">
+            <div className="bon-sectie-titel">Reistijd &amp; kilometers</div>
+            <div style={{ display: 'flex', gap: 24, fontSize: 14 }}>
+              {bon.reistijd > 0 && <span>🕐 {bon.reistijd} min reistijd</span>}
+              {bon.kilometers > 0 && <span>🚗 {bon.kilometers} km</span>}
+            </div>
+          </div>
+        )}
         {fotos.length > 0 && <div className="bon-sectie"><div className="bon-sectie-titel">Foto's ({fotos.length})</div><div className="bon-foto-lijst">{fotos.map((f, i) => <a key={i} href={f.shareUrl} target="_blank" rel="noreferrer" className="bon-foto-link">📷 {f.naam}</a>)}</div></div>}
       </div>
 

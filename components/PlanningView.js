@@ -20,26 +20,23 @@ function isVandaag(d) { return ds(d) === vandaag() }
 function tijdStr(t) { return t ? t.slice(0, 5) : '' }
 function datumNL(iso) { if (!iso) return ''; const [y,m,d] = iso.split('-'); return `${d}-${m}-${y}` }
 
-function dagIdx(d) { // 0=ma ... 6=zo
+function dagIdx(d) {
   const dag = (d instanceof Date ? d : new Date(d + 'T12:00:00')).getDay()
   return dag === 0 ? 6 : dag - 1
 }
-
-function addDagen(datum, n) {
-  const d = new Date(datum)
-  d.setDate(d.getDate() + n)
-  return d
-}
-
+function addDagen(datum, n) { const d = new Date(datum); d.setDate(d.getDate() + n); return d }
 function maandagVan(datum) {
   const d = datum instanceof Date ? new Date(datum) : new Date(datum + 'T12:00:00')
-  d.setDate(d.getDate() - dagIdx(d))
-  d.setHours(12, 0, 0, 0)
-  return d
+  d.setDate(d.getDate() - dagIdx(d)); d.setHours(12, 0, 0, 0); return d
 }
+function weekDagenVan(ma) { return Array.from({ length: 7 }, (_, i) => addDagen(ma, i)) }
 
-function weekDagenVan(ma) {
-  return Array.from({ length: 7 }, (_, i) => addDagen(ma, i))
+function weekNummer(datum) {
+  const d = datum instanceof Date ? new Date(datum) : new Date(datum + 'T12:00:00')
+  d.setHours(12, 0, 0, 0)
+  d.setDate(d.getDate() + 4 - (d.getDay() || 7))
+  const yearStart = new Date(d.getFullYear(), 0, 1)
+  return Math.ceil(((d - yearStart) / 86400000 + 1) / 7)
 }
 
 function maandKalender(jaar, maand) {
@@ -59,25 +56,26 @@ function periodeLabel(viewMode, refDatum) {
   if (viewMode === 'week') {
     const ma = maandagVan(refDatum)
     const zo = addDagen(ma, 6)
-    if (ma.getMonth() === zo.getMonth()) return `${ma.getDate()} – ${zo.getDate()} ${MK[zo.getMonth()]} ${zo.getFullYear()}`
-    return `${ma.getDate()} ${MK[ma.getMonth()]} – ${zo.getDate()} ${MK[zo.getMonth()]} ${zo.getFullYear()}`
+    const wn = weekNummer(ma)
+    const range = ma.getMonth() === zo.getMonth()
+      ? `${ma.getDate()} – ${zo.getDate()} ${MK[zo.getMonth()]} ${zo.getFullYear()}`
+      : `${ma.getDate()} ${MK[ma.getMonth()]} – ${zo.getDate()} ${MK[zo.getMonth()]} ${zo.getFullYear()}`
+    return `Week ${wn} · ${range}`
   }
   return `${DK[dagIdx(refDatum)]}dag ${refDatum.getDate()} ${MN[refDatum.getMonth()]} ${refDatum.getFullYear()}`
 }
 
 function periodeVerschuif(viewMode, refDatum, richting) {
-  if (viewMode === 'maand') {
-    const d = new Date(refDatum)
-    d.setMonth(d.getMonth() + richting)
-    return d
-  }
+  if (viewMode === 'maand') { const d = new Date(refDatum); d.setMonth(d.getMonth() + richting); return d }
   if (viewMode === 'week') return addDagen(refDatum, richting * 7)
   return addDagen(refDatum, richting)
 }
 
+function getMedewerkers(a) { return a.medewerkers || (a.toegewezen_aan ? [a.toegewezen_aan] : []) }
+
 function filterAfspraken(afspraken, filterMed) {
   if (!filterMed) return afspraken
-  return afspraken.filter(a => a.toegewezen_aan === filterMed || a.voor_iedereen)
+  return afspraken.filter(a => getMedewerkers(a).includes(filterMed) || a.voor_iedereen)
 }
 
 // ── Autocomplete ─────────────────────────────────────────────────────
@@ -104,9 +102,10 @@ function AC({ waarde, opties, onChange, onSelect, placeholder }) {
 
 // ── Afspraak kaart ────────────────────────────────────────────────────
 export function AfspraakKaart({ a, medewerkers, werkbonnen, onClick, readOnly }) {
-  const med = medewerkers?.find(m => m.id === a.toegewezen_aan)
+  const meds = medewerkers?.filter(m => getMedewerkers(a).includes(m.id)) || []
   const bon = werkbonnen?.find(b => b.id === a.werkbon_id)
   const kleur = a.kleur || '#C9A227'
+  const adresStr = [a.klant_adres, a.klant_postcode, a.klant_plaats].filter(Boolean).join(' ')
   return (
     <div className="afspraak-kaart" style={{ borderLeftColor: kleur, cursor: readOnly ? 'default' : 'pointer' }}
       onClick={readOnly ? undefined : onClick}>
@@ -116,15 +115,22 @@ export function AfspraakKaart({ a, medewerkers, werkbonnen, onClick, readOnly })
           <span className="afspraak-tijd">{tijdStr(a.tijdstip_van)}{a.tijdstip_tot ? ` – ${tijdStr(a.tijdstip_tot)}` : ''}</span>
         )}
       </div>
-      {med && <div className="afspraak-meta"><span className="afspraak-med-dot" style={{ background: med.kleur || '#C9A227' }} />👷 {med.naam}</div>}
-      {a.klant_naam && <div className="afspraak-meta">👤 {a.klant_naam}</div>}
-      {(a.klant_adres || a.klant_plaats) && (
+      {meds.length > 0 && (
         <div className="afspraak-meta">
-          📍 {[a.klant_adres, a.klant_postcode, a.klant_plaats].filter(Boolean).join(' ')}
-          {!readOnly && (
-            <a href={`https://maps.google.com/?q=${encodeURIComponent([a.klant_adres, a.klant_postcode, a.klant_plaats].filter(Boolean).join(' '))}`}
-              target="_blank" rel="noreferrer" className="maps-knop-mini" onClick={e => e.stopPropagation()}>🗺️</a>
-          )}
+          {meds.map(m => (
+            <span key={m.id} className="afspraak-med-chip" style={{ background: (m.kleur || '#C9A227') + '22', borderColor: m.kleur || '#C9A227' }}>
+              <span className="afspraak-med-dot" style={{ background: m.kleur || '#C9A227' }} />
+              {m.naam}
+            </span>
+          ))}
+        </div>
+      )}
+      {a.klant_naam && <div className="afspraak-meta">👤 {a.klant_naam}</div>}
+      {adresStr && (
+        <div className="afspraak-meta">
+          📍 {adresStr}
+          <a href={`https://maps.google.com/?q=${encodeURIComponent(adresStr)}`}
+            target="_blank" rel="noreferrer" className="maps-knop-mini" onClick={e => e.stopPropagation()}>🗺️</a>
         </div>
       )}
       {a.omschrijving && <div className="afspraak-omschrijving">{a.omschrijving}</div>}
@@ -140,11 +146,29 @@ function AfspraakForm({ form, setForm, klanten, werkbonnen, medewerkers, onOpsla
 
   function klantSelecteren(klant) {
     setForm(f => ({
-      ...f, klant_naam: klant.naam,
-      klant_adres: klant.adres || '',
-      klant_postcode: klant.postcode || '',
-      klant_plaats: klant.plaats || '',
+      ...f, klant_naam: klant.naam, klant_adres: klant.adres || '',
+      klant_postcode: klant.postcode || '', klant_plaats: klant.plaats || '',
     }))
+  }
+
+  function werkbonSelecteren(werkbonId) {
+    setForm(f => {
+      const bon = werkbonnen.find(b => b.id === werkbonId)
+      if (!bon) return { ...f, werkbon_id: werkbonId }
+      return {
+        ...f, werkbon_id: werkbonId,
+        klant_naam: bon.klant_naam || f.klant_naam,
+        klant_adres: bon.klant_adres || f.klant_adres,
+        klant_postcode: bon.klant_postcode || f.klant_postcode,
+        klant_plaats: bon.klant_plaats || f.klant_plaats,
+        omschrijving: f.omschrijving || bon.omschrijving || '',
+      }
+    })
+  }
+
+  function toggleMedewerker(id) {
+    const cur = form.medewerkers || []
+    sv('medewerkers', cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id])
   }
 
   return (
@@ -183,21 +207,32 @@ function AfspraakForm({ form, setForm, klanten, werkbonnen, medewerkers, onOpsla
           <div className="veld"><label>Tot</label><input type="time" value={form.tijdstip_tot || ''} onChange={e => sv('tijdstip_tot', e.target.value)} /></div>
         </div>
 
-        {medewerkers.length > 0 && <>
-          <div className="veld"><label>Toegewezen aan</label>
-            <select value={form.toegewezen_aan || ''} onChange={e => sv('toegewezen_aan', e.target.value)}>
-              <option value="">— Niet toegewezen —</option>
-              {medewerkers.map(m => <option key={m.id} value={m.id}>{m.naam}</option>)}
-            </select>
+        {medewerkers.length > 0 && (
+          <div className="veld">
+            <label>Toegewezen aan</label>
+            <div className="medewerker-checkboxen">
+              {medewerkers.map(m => {
+                const checked = (form.medewerkers || []).includes(m.id)
+                return (
+                  <label key={m.id} className={`medewerker-checkbox-optie${checked ? ' geselecteerd' : ''}`}
+                    style={checked ? { borderColor: m.kleur || '#C9A227', background: (m.kleur || '#C9A227') + '18' } : {}}>
+                    <input type="checkbox" checked={checked} onChange={() => toggleMedewerker(m.id)} style={{ display: 'none' }} />
+                    <span className="med-checkbox-dot" style={{ background: m.kleur || '#C9A227' }} />
+                    {m.naam}
+                    {checked && <span style={{ marginLeft: 'auto' }}>✓</span>}
+                  </label>
+                )
+              })}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
+              <input type="checkbox" id="voor-iedereen" checked={!!form.voor_iedereen}
+                onChange={e => sv('voor_iedereen', e.target.checked)} style={{ width: 'auto', margin: 0 }} />
+              <label htmlFor="voor-iedereen" style={{ fontWeight: 'normal', marginBottom: 0, fontSize: 14 }}>
+                Zichtbaar voor alle medewerkers
+              </label>
+            </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
-            <input type="checkbox" id="voor-iedereen" checked={!!form.voor_iedereen}
-              onChange={e => sv('voor_iedereen', e.target.checked)} style={{ width: 'auto', margin: 0 }} />
-            <label htmlFor="voor-iedereen" style={{ fontWeight: 'normal', marginBottom: 0, fontSize: 14 }}>
-              Zichtbaar voor alle medewerkers
-            </label>
-          </div>
-        </>}
+        )}
       </div>
 
       <div className="sectie">
@@ -222,7 +257,8 @@ function AfspraakForm({ form, setForm, klanten, werkbonnen, medewerkers, onOpsla
 
       <div className="sectie">
         <div className="sectie-titel">Koppel werkbon (optioneel)</div>
-        <select value={form.werkbon_id || ''} onChange={e => sv('werkbon_id', e.target.value)}>
+        <p style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>Klantgegevens en omschrijving worden automatisch overgenomen.</p>
+        <select value={form.werkbon_id || ''} onChange={e => werkbonSelecteren(e.target.value)}>
           <option value="">— Geen werkbon —</option>
           {werkbonnen.map(b => <option key={b.id} value={b.id}>{b.nummer}{b.klant_naam ? ` · ${b.klant_naam}` : ''} · {datumNL(b.datum)}</option>)}
         </select>
@@ -264,7 +300,7 @@ function MedewerkersView({ medewerkers, onVervers, onTerug }) {
       <div className="sectie">
         <div className="sectie-titel">Medewerkers</div>
         <p style={{ color: '#888', fontSize: 13, marginBottom: 12 }}>
-          Elke medewerker krijgt een persoonlijke link. Via die link zien ze alleen hun eigen afspraken (+ afspraken die voor iedereen zijn gemarkeerd).
+          Elke medewerker krijgt een persoonlijke link. Via die link zien ze alleen hun eigen afspraken (+ afspraken voor iedereen).
         </p>
         {medewerkers.length === 0 ? (
           <div className="leeg"><p>Nog geen medewerkers.<br />Klik op <strong>+ Medewerker</strong> om te beginnen.</p></div>
@@ -297,37 +333,42 @@ function MaandView({ refDatum, afspraken, onDagKlik }) {
   const jaar = refDatum.getFullYear()
   const maand = refDatum.getMonth()
   const dagen = maandKalender(jaar, maand)
-
-  function apVanDag(d) { return afspraken.filter(a => a.datum === ds(d)) }
+  const weken = []
+  for (let i = 0; i < dagen.length; i += 7) weken.push(dagen.slice(i, i + 7))
 
   return (
     <div className="maand-kalender">
       <div className="maand-dag-headers">
+        <div className="maand-wk-header">Wk</div>
         {DK.map(d => <div key={d} className="maand-dag-header">{d}</div>)}
       </div>
-      <div className="maand-grid">
-        {dagen.map(dag => {
-          const aps = apVanDag(dag)
-          const huidigemnd = dag.getMonth() === maand
-          const today = isVandaag(dag)
-          return (
-            <div key={ds(dag)}
-              className={`maand-cel${!huidigemnd ? ' maand-cel-grijs' : ''}${today ? ' maand-cel-vandaag' : ''}`}
-              onClick={() => onDagKlik(ds(dag))}>
-              <div className="maand-cel-nr">{dag.getDate()}</div>
-              <div className="maand-afspraken">
-                {aps.slice(0, 2).map(a => (
-                  <div key={a.id} className="maand-afspraak-chip" style={{ background: (a.kleur || '#C9A227') + '22', borderLeftColor: a.kleur || '#C9A227' }}>
-                    {tijdStr(a.tijdstip_van) && <span className="maand-chip-tijd">{tijdStr(a.tijdstip_van)}</span>}
-                    <span className="maand-chip-titel">{a.titel}</span>
-                  </div>
-                ))}
-                {aps.length > 2 && <div className="maand-meer">+{aps.length - 2} meer</div>}
+      {weken.map((week, wi) => (
+        <div key={wi} className="maand-week-rij">
+          <div className="maand-wk-nr">{weekNummer(week[0])}</div>
+          {week.map(dag => {
+            const aps = afspraken.filter(a => a.datum === ds(dag))
+            const huidigemnd = dag.getMonth() === maand
+            const today = isVandaag(dag)
+            return (
+              <div key={ds(dag)}
+                className={`maand-cel${!huidigemnd ? ' maand-cel-grijs' : ''}${today ? ' maand-cel-vandaag' : ''}`}
+                onClick={() => onDagKlik(ds(dag))}>
+                <div className="maand-cel-nr">{dag.getDate()}</div>
+                <div className="maand-afspraken">
+                  {aps.slice(0, 2).map(a => (
+                    <div key={a.id} className="maand-afspraak-chip"
+                      style={{ background: (a.kleur || '#C9A227') + '22', borderLeftColor: a.kleur || '#C9A227' }}>
+                      {tijdStr(a.tijdstip_van) && <span className="maand-chip-tijd">{tijdStr(a.tijdstip_van)}</span>}
+                      <span className="maand-chip-titel">{a.titel}</span>
+                    </div>
+                  ))}
+                  {aps.length > 2 && <div className="maand-meer">+{aps.length - 2}</div>}
+                </div>
               </div>
-            </div>
-          )
-        })}
-      </div>
+            )
+          })}
+        </div>
+      ))}
     </div>
   )
 }
@@ -349,7 +390,7 @@ function WeekView({ refDatum, afspraken, medewerkers, werkbonnen, onDagKlik, onA
                 {DK[dagIdx(dag)]} {dag.getDate()} {MK[dag.getMonth()]}{today ? ' · Vandaag' : ''}
               </span>
               {aps.length > 0 && (
-                <span className="planning-dag-teller">{aps.length} afspraak{aps.length > 1 ? 'en' : ''} →</span>
+                <span className="planning-dag-teller">{aps.length} afspraak{aps.length !== 1 ? 'en' : ''} →</span>
               )}
             </div>
             {aps.length === 0 ? (
@@ -386,7 +427,7 @@ function DagView({ refDatum, afspraken, medewerkers, werkbonnen, onAfspraakKlik,
   )
 }
 
-// ── Planning header (nav + switcher + filter) ─────────────────────────
+// ── Planning header ───────────────────────────────────────────────────
 function PlanningHeader({ viewMode, setViewMode, refDatum, setRefDatum, medewerkers, filterMed, setFilterMed, onMedewerkers, readOnly }) {
   return (
     <>
@@ -398,9 +439,7 @@ function PlanningHeader({ viewMode, setViewMode, refDatum, setRefDatum, medewerk
             </button>
           ))}
         </div>
-        {!readOnly && (
-          <button className="planning-med-btn" onClick={onMedewerkers} title="Medewerkers beheren">👷</button>
-        )}
+        {!readOnly && <button className="planning-med-btn" onClick={onMedewerkers} title="Medewerkers beheren">👷</button>}
       </div>
 
       <div className="planning-periode-nav">
@@ -416,8 +455,7 @@ function PlanningHeader({ viewMode, setViewMode, refDatum, setRefDatum, medewerk
         <div className="planning-filter">
           <button className={`planning-filter-btn${!filterMed ? ' actief' : ''}`} onClick={() => setFilterMed('')}>Alles</button>
           {medewerkers.map(m => (
-            <button key={m.id}
-              className={`planning-filter-btn${filterMed === m.id ? ' actief' : ''}`}
+            <button key={m.id} className={`planning-filter-btn${filterMed === m.id ? ' actief' : ''}`}
               style={filterMed === m.id ? { borderColor: m.kleur || '#C9A227', color: m.kleur || '#C9A227', background: (m.kleur || '#C9A227') + '18' } : {}}
               onClick={() => setFilterMed(filterMed === m.id ? '' : m.id)}>
               <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: m.kleur || '#C9A227', marginRight: 5 }} />
@@ -463,54 +501,40 @@ export default function PlanningView({ klanten, werkbonnen }) {
 
   function leegForm() {
     return {
-      datum: ds(refDatum),
-      tijdstip_van: '08:00',
-      tijdstip_tot: '17:00',
-      titel: '',
-      omschrijving: '',
-      klant_naam: '',
-      klant_adres: '',
-      klant_postcode: '',
-      klant_plaats: '',
-      werkbon_id: '',
-      toegewezen_aan: filterMed || '',
-      voor_iedereen: false,
-      kleur: '#C9A227',
+      datum: ds(refDatum), tijdstip_van: '08:00', tijdstip_tot: '17:00',
+      titel: '', omschrijving: '', klant_naam: '', klant_adres: '', klant_postcode: '', klant_plaats: '',
+      werkbon_id: '', medewerkers: filterMed ? [filterMed] : [], voor_iedereen: false, kleur: '#C9A227',
     }
   }
 
   async function opslaan() {
     if (!form.titel?.trim()) { alert('Titel is verplicht'); return }
     setBezig(true)
-    const { id, aangemaakt, ...data } = form
-    const saveData = { ...data, werkbon_id: data.werkbon_id || null, toegewezen_aan: data.toegewezen_aan || null }
+    const { id, aangemaakt, toegewezen_aan, ...data } = form
+    const saveData = { ...data, werkbon_id: data.werkbon_id || null, medewerkers: data.medewerkers || [] }
     if (form.id) {
       await supabase.from('planning').update(saveData).eq('id', form.id)
     } else {
       await supabase.from('planning').insert(saveData)
     }
-    await laadAfspraken()
-    setBezig(false)
-    setForm(null)
+    await laadAfspraken(); setBezig(false); setForm(null)
   }
 
   async function verwijder() {
     if (!form.id || !window.confirm('Afspraak verwijderen?')) return
     await supabase.from('planning').delete().eq('id', form.id)
-    await laadAfspraken()
-    setForm(null)
+    await laadAfspraken(); setForm(null)
   }
 
   function dagKlik(dagStr) { setRefDatum(parseDate(dagStr)); setViewMode('dag') }
-  function afspraakKlik(a) { setForm({ ...a, werkbon_id: a.werkbon_id || '', toegewezen_aan: a.toegewezen_aan || '' }) }
-
-  if (form !== null) {
-    return (
-      <AfspraakForm form={form} setForm={setForm} klanten={klanten} werkbonnen={werkbonnen} medewerkers={medewerkers}
-        onOpslaan={opslaan} onVerwijder={verwijder} onAnnuleer={() => setForm(null)} bezig={bezig} />
-    )
+  function afspraakKlik(a) {
+    setForm({ ...a, werkbon_id: a.werkbon_id || '', medewerkers: getMedewerkers(a) })
   }
 
+  if (form !== null) {
+    return <AfspraakForm form={form} setForm={setForm} klanten={klanten} werkbonnen={werkbonnen} medewerkers={medewerkers}
+      onOpslaan={opslaan} onVerwijder={verwijder} onAnnuleer={() => setForm(null)} bezig={bezig} />
+  }
   if (medView) {
     return <MedewerkersView medewerkers={medewerkers} onVervers={laadMedewerkers} onTerug={() => setMedView(false)} />
   }
@@ -519,17 +543,15 @@ export default function PlanningView({ klanten, werkbonnen }) {
     <div className="view-content with-bottom-nav">
       <PlanningHeader viewMode={viewMode} setViewMode={setViewMode} refDatum={refDatum} setRefDatum={setRefDatum}
         medewerkers={medewerkers} filterMed={filterMed} setFilterMed={setFilterMed} onMedewerkers={() => setMedView(true)} />
-
       {viewMode === 'maand' && <MaandView refDatum={refDatum} afspraken={zichtbareAfspraken} onDagKlik={dagKlik} />}
       {viewMode === 'week' && <WeekView refDatum={refDatum} afspraken={zichtbareAfspraken} medewerkers={medewerkers} werkbonnen={werkbonnen} onDagKlik={dagKlik} onAfspraakKlik={afspraakKlik} />}
       {viewMode === 'dag' && <DagView refDatum={refDatum} afspraken={zichtbareAfspraken} medewerkers={medewerkers} werkbonnen={werkbonnen} onAfspraakKlik={afspraakKlik} />}
-
       <button className="fab fab-boven-nav" onClick={() => setForm(leegForm())}>+</button>
     </div>
   )
 }
 
-// ── Read-only view (gedeelde medewerker link) ─────────────────────────
+// ── Read-only view (personeelslink) ───────────────────────────────────
 export function PlanningReadOnly({ medewerkerId, initialAfspraken }) {
   const [afspraken, setAfspraken] = useState(initialAfspraken || [])
   const [viewMode, setViewMode] = useState('week')
@@ -540,13 +562,12 @@ export function PlanningReadOnly({ medewerkerId, initialAfspraken }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'planning' }, async () => {
         const { data } = await supabase.from('planning').select('*').order('datum').order('tijdstip_van', { nullsFirst: true })
         setAfspraken(data || [])
-      })
-      .subscribe()
+      }).subscribe()
     return () => supabase.removeChannel(ch)
   }, [])
 
   const mijn = medewerkerId
-    ? afspraken.filter(a => a.toegewezen_aan === medewerkerId || a.voor_iedereen)
+    ? afspraken.filter(a => getMedewerkers(a).includes(medewerkerId) || a.voor_iedereen)
     : afspraken
 
   function dagKlik(dagStr) { setRefDatum(parseDate(dagStr)); setViewMode('dag') }
@@ -555,7 +576,6 @@ export function PlanningReadOnly({ medewerkerId, initialAfspraken }) {
     <div className="view-content">
       <PlanningHeader viewMode={viewMode} setViewMode={setViewMode} refDatum={refDatum} setRefDatum={setRefDatum}
         medewerkers={[]} filterMed="" setFilterMed={() => {}} onMedewerkers={() => {}} readOnly />
-
       {viewMode === 'maand' && <MaandView refDatum={refDatum} afspraken={mijn} onDagKlik={dagKlik} />}
       {viewMode === 'week' && <WeekView refDatum={refDatum} afspraken={mijn} medewerkers={[]} werkbonnen={[]} onDagKlik={dagKlik} onAfspraakKlik={() => {}} readOnly />}
       {viewMode === 'dag' && <DagView refDatum={refDatum} afspraken={mijn} medewerkers={[]} werkbonnen={[]} onAfspraakKlik={() => {}} readOnly />}

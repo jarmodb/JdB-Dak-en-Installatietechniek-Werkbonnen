@@ -800,8 +800,15 @@ tr:last-child td { border-bottom: none; }
 .maand-kalender { padding: 0 12px 12px; }
 .maand-dag-headers {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: 28px repeat(7, 1fr);
   margin-bottom: 4px;
+}
+.maand-wk-header {
+  font-size: 10px;
+  font-weight: 700;
+  color: #bbb;
+  text-align: center;
+  padding: 4px 0;
 }
 .maand-dag-header {
   text-align: center;
@@ -811,10 +818,20 @@ tr:last-child td { border-bottom: none; }
   padding: 4px 0;
   text-transform: uppercase;
 }
-.maand-grid {
+.maand-week-rij {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: 28px repeat(7, 1fr);
   gap: 3px;
+  margin-bottom: 3px;
+}
+.maand-wk-nr {
+  font-size: 10px;
+  color: #bbb;
+  font-weight: 700;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 6px;
 }
 .maand-cel {
   background: white;
@@ -990,4 +1007,107 @@ tr:last-child td { border-bottom: none; }
   text-decoration: none;
   margin-left: 4px;
   flex-shrink: 0;
+}
+
+/* Medewerker chip in afspraak kaart */
+.afspraak-med-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 12px;
+  border: 1px solid;
+  font-size: 11px;
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+/* Medewerker checkboxen in formulier */
+.medewerker-checkboxen { display: flex; flex-direction: column; gap: 6px; }
+.medewerker-checkbox-optie {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1.5px solid var(--grens);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  background: white;
+  transition: all .15s;
+}
+.medewerker-checkbox-optie:hover { border-color: var(--goud); }
+.medewerker-checkbox-optie.geselecteerd { font-weight: 700; }
+.med-checkbox-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+/* === TODOS === */
+.todo-invoer {
+  display: flex;
+  gap: 8px;
+  padding: 0 0 12px;
+}
+.todo-input {
+  flex: 1;
+  padding: 12px 14px;
+  border: 1.5px solid var(--grens);
+  border-radius: 8px;
+  font-size: 15px;
+  outline: none;
+}
+.todo-input:focus { border-color: var(--goud); }
+.todo-filter {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.todo-filter-btn {
+  background: white;
+  border: 1.5px solid var(--grens);
+  border-radius: 20px;
+  padding: 5px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--grijs);
+  transition: all .15s;
+}
+.todo-filter-btn.actief {
+  background: var(--goud);
+  border-color: var(--goud);
+  color: var(--zwart);
+}
+.todo-lijst { display: flex; flex-direction: column; gap: 6px; }
+.todo-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: white;
+  border-radius: 8px;
+  padding: 12px 14px;
+  box-shadow: var(--schaduw);
+  transition: opacity .2s;
+}
+.todo-item.gedaan { opacity: .6; }
+.todo-check {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--goud);
+  background: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--goud);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: background .15s;
+}
+.todo-item.gedaan .todo-check { background: var(--goud); color: white; }
+.todo-tekst {
+  flex: 1;
+  font-size: 15px;
+}
+.todo-item.gedaan .todo-tekst {
+  text-decoration: line-through;
+  color: var(--grijs);
 }
