@@ -138,8 +138,8 @@ header span { font-size: 13px; color: var(--goud); }
 .btn-groen-licht { background: #d1fae5; color: var(--groen); }
 .btn-groen-licht:hover { background: #a7f3d0; }
 
-.btn-digiboox { background: #fff7ed; color: #d97706; border: 1.5px solid #fed7aa; }
-.btn-digiboox:hover { background: #ffedd5; }
+.btn-sec { background: var(--grijs-licht); color: var(--tekst); padding: 7px 12px; font-size: 13px; }
+.btn-sec:hover { background: var(--grens); }
 
 .fab {
   position: fixed;

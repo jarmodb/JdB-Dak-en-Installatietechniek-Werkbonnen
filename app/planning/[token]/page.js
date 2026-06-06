@@ -67,6 +67,11 @@ export default function PlanningDeelPage() {
     )
   }
 
+  async function vinkAf(id) {
+    await supabase.from('todos').update({ gedaan: true }).eq('id', id)
+    setTodos(prev => prev.filter(t => t.id !== id))
+  }
+
   const volgorde = { hoog: 0, normaal: 1, laag: 2 }
   const gesorteerdesTodos = [...todos].sort((a, b) => (volgorde[a.prioriteit] ?? 1) - (volgorde[b.prioriteit] ?? 1))
 
@@ -82,23 +87,33 @@ export default function PlanningDeelPage() {
 
       <PlanningReadOnly medewerkerId={medewerkerId} initialAfspraken={afspraken} />
 
-      {gesorteerdesTodos.length > 0 && (
-        <div style={{ padding: '0 16px 100px' }}>
-          <div className="sectie-titel" style={{ marginBottom: 10 }}>✅ Mijn taken ({gesorteerdesTodos.length})</div>
+      <div style={{ padding: '0 16px 100px' }}>
+        <div className="sectie-titel" style={{ marginBottom: 10 }}>
+          ✅ Mijn taken {gesorteerdesTodos.length > 0 ? `(${gesorteerdesTodos.length})` : ''}
+        </div>
+        {gesorteerdesTodos.length === 0 ? (
+          <div style={{ color: '#888', fontSize: 14, padding: '12px 0' }}>Geen openstaande taken 🎉</div>
+        ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {gesorteerdesTodos.map(t => {
               const prio = PRIORITEITEN[t.prioriteit] || PRIORITEITEN.normaal
               return (
                 <div key={t.id} style={{ background: 'white', borderRadius: 8, padding: '10px 14px', boxShadow: '0 1px 3px rgba(0,0,0,.1)', display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: prio.kleur, flexShrink: 0 }} />
+                  <button
+                    onClick={() => vinkAf(t.id)}
+                    style={{ width: 26, height: 26, borderRadius: '50%', border: `2px solid ${prio.kleur}`, background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 14, color: prio.kleur, fontWeight: 700, padding: 0 }}
+                    title="Markeer als gedaan"
+                  >
+                    ✓
+                  </button>
                   <span style={{ flex: 1, fontSize: 15 }}>{t.tekst}</span>
                   <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: prio.achtergrond, border: `1px solid ${prio.rand}`, color: prio.kleur }}>{prio.label}</span>
                 </div>
               )
             })}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </>
   )
 }

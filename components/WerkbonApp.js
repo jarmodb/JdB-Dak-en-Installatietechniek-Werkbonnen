@@ -748,9 +748,8 @@ export default function WerkbonApp() {
         <div className="view-content">
           <button className="form-terug" onClick={toonOverzicht}>← Terug</button>
           <div className="detail-acties">
-            <button className="btn btn-primair" onClick={() => window.print()}>🖨️ PDF / Afdrukken</button>
-            <button className="btn btn-digiboox" onClick={exporteerUBL}>📤 Exporteer naar Digiboox</button>
-            <button className="btn btn-licht" onClick={bewerkWerkbon}>✏️ Bewerken</button>
+            <button className="btn btn-primair" onClick={bewerkWerkbon}>✏️ Bewerken</button>
+            <button className="btn btn-sec" onClick={() => window.print()}>🖨️ PDF / Afdrukken</button>
             <button className={`btn ${huidigeBon.gefactureerd ? 'btn-groen-licht' : 'btn-licht'}`} onClick={wisselStatus}>{huidigeBon.gefactureerd ? '✓ Gefactureerd' : 'Markeer gefactureerd'}</button>
             <button className="btn btn-gevaar-licht" onClick={() => setVerwijderModal(true)}>🗑️</button>
           </div>
