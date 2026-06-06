@@ -24,6 +24,7 @@ export default function PlanningDeelPage() {
 
       setMedewerkerId(link.id)
       setMedewerkerNaam(link.naam)
+      document.title = `Planning – ${link.naam}`
 
       const { data } = await supabase
         .from('planning')
