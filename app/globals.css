@@ -186,6 +186,19 @@ header span { font-size: 13px; color: var(--goud); }
   margin-bottom: 16px;
 }
 
+.pdf-onedrive-status {
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.pdf-onedrive-status[data-status="bezig"] { background: #fffbe6; color: #C9A227; border: 1px solid #ffe58f; }
+.pdf-onedrive-status[data-status="klaar"] { background: #f6ffed; color: #389E0D; border: 1px solid #b7eb8f; }
+.pdf-onedrive-status[data-status="fout"]  { background: #fff1f0; color: #D4380D; border: 1px solid #ffccc7; }
+
 /* === FORMULIER === */
 .sectie {
   background: white;

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { genereerUBL } from '@/lib/ubl'
-import { msLogin, msLogout, msGetAccount, uploadFotoNaarOneDrive } from '@/lib/onedrive'
+import { msLogin, msLogout, msGetAccount, uploadFotoNaarOneDrive, uploadPdfNaarOneDrive } from '@/lib/onedrive'
 import PlanningView from '@/components/PlanningView'
 import TodoView from '@/components/TodoView'
 
@@ -257,7 +257,19 @@ export default function WerkbonApp() {
   const [postcodeBezig, setPostcodeBezig] = useState(false)
   const [msIngelogd, setMsIngelogd] = useState(false)
   const [fotoUploadBezig, setFotoUploadBezig] = useState(false)
+  const [pdfStatus, setPdfStatus] = useState(null) // null | 'bezig' | 'klaar' | 'fout'
   const fotoInputRef = useRef(null)
+  const bonPrintRef = useRef(null)
+  const autoSavePdfRef = useRef(false)
+
+  // Auto-save PDF naar OneDrive zodra detail view geladen is na opslaan
+  useEffect(() => {
+    if (view !== 'detail' || !autoSavePdfRef.current || !huidigeBon || !bonPrintRef.current) return
+    autoSavePdfRef.current = false
+    // Wacht even zodat fonts + afbeeldingen geladen zijn
+    const t = setTimeout(() => slaWerkbonPdfOp(bonPrintRef.current, huidigeBon), 900)
+    return () => clearTimeout(t)
+  }, [view, huidigeBon])
 
   useEffect(() => {
     window.history.replaceState({ view: 'overzicht' }, '')
@@ -425,7 +437,7 @@ export default function WerkbonApp() {
     const bestanden = Array.from(e.target.files); if (!bestanden.length) return
     setFotoUploadBezig(true)
     for (const b of bestanden) {
-      try { const foto = await uploadFotoNaarOneDrive(b, formulier.nummer || 'concept'); setFotos(f => [...f, foto]) }
+      try { const foto = await uploadFotoNaarOneDrive(b, formulier.nummer || 'concept', formulier.klant_naam); setFotos(f => [...f, foto]) }
       catch (err) { alert(`Upload mislukt: ${err.message}`) }
     }
     setFotoUploadBezig(false)
@@ -460,7 +472,10 @@ export default function WerkbonApp() {
       result = data
     }
     await laadWerkbonnen(); setBezig(false)
-    if (result) toonDetail(result); else toonOverzicht()
+    if (result) {
+      if (msIngelogd) autoSavePdfRef.current = true
+      toonDetail(result)
+    } else toonOverzicht()
   }
 
   async function wisselStatus() {
@@ -484,6 +499,31 @@ export default function WerkbonApp() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a'); a.href = url; a.download = `${huidigeBon.nummer}.xml`; a.click()
     URL.revokeObjectURL(url)
+  }
+
+  async function slaWerkbonPdfOp(element, bon) {
+    if (!element || !bon) return
+    setPdfStatus('bezig')
+    try {
+      const html2pdf = (await import('html2pdf.js')).default
+      const pdfBlob = await html2pdf()
+        .from(element)
+        .set({
+          margin: [8, 8, 8, 8],
+          filename: `${bon.nummer}.pdf`,
+          image: { type: 'jpeg', quality: 0.92 },
+          html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        })
+        .outputPdf('blob')
+      await uploadPdfNaarOneDrive(pdfBlob, bon.nummer, bon.klant_naam)
+      setPdfStatus('klaar')
+      setTimeout(() => setPdfStatus(null), 4000)
+    } catch (err) {
+      console.error('PDF naar OneDrive mislukt:', err)
+      setPdfStatus('fout')
+      setTimeout(() => setPdfStatus(null), 6000)
+    }
   }
 
   const totalen = bereken(werkdagen, formulier.uurtarief, materialen)
@@ -753,7 +793,14 @@ export default function WerkbonApp() {
             <button className={`btn ${huidigeBon.gefactureerd ? 'btn-groen-licht' : 'btn-licht'}`} onClick={wisselStatus}>{huidigeBon.gefactureerd ? '✓ Gefactureerd' : 'Markeer gefactureerd'}</button>
             <button className="btn btn-gevaar-licht" onClick={() => setVerwijderModal(true)}>🗑️</button>
           </div>
-          <div className="bon-print"><BonAfdruk bon={huidigeBon} /></div>
+          {msIngelogd && pdfStatus && (
+            <div className="pdf-onedrive-status" data-status={pdfStatus}>
+              {pdfStatus === 'bezig' && '⏳ PDF opslaan naar OneDrive…'}
+              {pdfStatus === 'klaar' && '✅ PDF opgeslagen in OneDrive'}
+              {pdfStatus === 'fout' && '⚠️ PDF opslaan naar OneDrive mislukt'}
+            </div>
+          )}
+          <div className="bon-print" ref={bonPrintRef}><BonAfdruk bon={huidigeBon} /></div>
         </div>
       )}
 
