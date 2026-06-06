@@ -106,7 +106,7 @@ function bereken(werkdagen, uurtarief, materialen) {
 }
 
 function leegFormulier() {
-  return { nummer: '', datum: vandaag(), klant_naam: '', klant_straat: '', klant_huisnummer: '', klant_postcode: '', klant_plaats: '', klant_tel: '', klant_email: '', omschrijving: '', uurtarief: '', notities: '', reistijd: '', kilometers: '', start_adres: '' }
+  return { nummer: '', naam: '', datum: vandaag(), klant_naam: '', klant_straat: '', klant_huisnummer: '', klant_postcode: '', klant_plaats: '', klant_tel: '', klant_email: '', omschrijving: '', uurtarief: '', notities: '', reistijd: '', kilometers: '', start_adres: '' }
 }
 
 // ── Autocomplete component ───────────────────────────────────────────
@@ -421,7 +421,7 @@ export default function WerkbonApp() {
           return { omschrijving: m.omschrijving, aantal: parseFloat(m.aantal) || 0, eenheid: m.eenheid || 'stuk', prijs: parseFloat(m.prijs) || 0, medewerker_id: m.medewerker_id || null, medewerker_naam: med?.naam || null, medewerker_kleur: med?.kleur || null }
         })
         const rij = {
-          datum: formulier.datum, klant_naam: formulier.klant_naam,
+          datum: formulier.datum, naam: formulier.naam || null, klant_naam: formulier.klant_naam,
           klant_adres: [formulier.klant_straat, formulier.klant_huisnummer].filter(Boolean).join(' '),
           klant_postcode: formulier.klant_postcode, klant_plaats: formulier.klant_plaats,
           klant_tel: formulier.klant_tel, klant_email: formulier.klant_email,
@@ -495,7 +495,7 @@ export default function WerkbonApp() {
     setBewerkModus(true)
     const adresM = (huidigeBon.klant_adres || '').match(/^(.*?)\s+(\d+\S*)$/)
     setFormulier({
-      nummer: huidigeBon.nummer || '', datum: huidigeBon.datum || vandaag(),
+      nummer: huidigeBon.nummer || '', naam: huidigeBon.naam || '', datum: huidigeBon.datum || vandaag(),
       klant_naam: huidigeBon.klant_naam || '',
       klant_straat: adresM ? adresM[1] : (huidigeBon.klant_adres || ''),
       klant_huisnummer: adresM ? adresM[2] : '',
@@ -647,7 +647,7 @@ export default function WerkbonApp() {
     })
     const totalen = bereken(geldigeWerkdagen, formulier.uurtarief, geldigeMat)
     const rij = {
-      nummer: formulier.nummer, datum: formulier.datum, type: geselecteerdeTypes.join(', '),
+      nummer: formulier.nummer, naam: formulier.naam || null, datum: formulier.datum, type: geselecteerdeTypes.join(', '),
       klant_naam: formulier.klant_naam,
       klant_adres: [formulier.klant_straat, formulier.klant_huisnummer].filter(Boolean).join(' '),
       klant_postcode: formulier.klant_postcode, klant_plaats: formulier.klant_plaats, klant_tel: formulier.klant_tel, klant_email: formulier.klant_email,
@@ -798,7 +798,8 @@ export default function WerkbonApp() {
                   <div key={bon.id} className="bon-kaart" onClick={() => toonDetail(bon)}>
                     <div className="bon-nummer">{bon.nummer}</div>
                     <div className="bon-info">
-                      <div className="bon-klant">{bon.klant_naam || '(geen naam)'}</div>
+                      {bon.naam && <div className="bon-klant" style={{ fontWeight: 600 }}>{bon.naam}</div>}
+                      <div className={bon.naam ? 'bon-meta' : 'bon-klant'}>{bon.klant_naam || '(geen naam)'}</div>
                       <div className="bon-meta">
                         {datumNL(bon.datum)} &bull; {bon.type || '–'} &bull; {' '}
                         <span className={`status-badge ${bon.gefactureerd ? 'status-gefactureerd' : 'status-open'}`}>{bon.gefactureerd ? 'Gefactureerd' : 'Open'}</span>
@@ -856,6 +857,10 @@ export default function WerkbonApp() {
             <div className="rij-2">
               <div className="veld"><label>Bonnummer</label><input type="text" value={formulier.nummer} onChange={e => setVeld('nummer', e.target.value)} placeholder="WB-2026-001" /></div>
               <div className="veld"><label>Datum</label><input type="date" value={formulier.datum} onChange={e => setVeld('datum', e.target.value)} /></div>
+            </div>
+            <div className="veld">
+              <label>Naam / omschrijving</label>
+              <input type="text" value={formulier.naam || ''} onChange={e => setVeld('naam', e.target.value)} placeholder="Bijv. Dakgoot plaatsen, CV ketel installatie..." />
             </div>
           </div>
 
@@ -1070,6 +1075,9 @@ export default function WerkbonApp() {
       {view === 'detail' && huidigeBon && (
         <div className="view-content">
           <button className="form-terug" onClick={toonOverzicht}>← Terug</button>
+          {huidigeBon.naam && (
+            <div style={{ fontSize: 18, fontWeight: 700, margin: '8px 0 4px', color: '#1a1a1a' }}>{huidigeBon.naam}</div>
+          )}
           <div className="detail-acties">
             <button className="btn btn-primair" onClick={bewerkWerkbon}>✏️ Bewerken</button>
             <button className="btn btn-sec" onClick={() => window.print()}>🖨️ PDF / Afdrukken</button>

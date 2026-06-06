@@ -411,6 +411,7 @@ function SjablonenView({ onTerug }) {
 function OfferteFormulier({ offerte, offertes, klanten, producten, sjablonen, onOpslaan, onAnnuleer }) {
   const [form, setForm] = useState(() => offerte ? { ...offerte } : {
     nummer: genNummer(offertes),
+    naam: '',
     datum: vandaag(),
     geldig_tot: addDagen(vandaag(), 30),
     klant_naam: '', klant_adres: '', klant_postcode: '', klant_plaats: '', klant_email: '',
@@ -564,6 +565,14 @@ function OfferteFormulier({ offerte, offertes, klanten, producten, sjablonen, on
           </span>
         )}
         <button className="btn btn-primair" onClick={opslaan} disabled={bezig}>{bezig ? 'Opslaan...' : '✓ Opslaan'}</button>
+      </div>
+
+      {/* Naam offerte */}
+      <div className="sectie">
+        <div className="sectie-titel">Offerte naam</div>
+        <div className="veld">
+          <input type="text" value={form.naam || ''} onChange={e => sv('naam', e.target.value)} placeholder="Bijv. Dakisolatie renovatie, Loodgieterswerk badkamer..." />
+        </div>
       </div>
 
       {/* Klant */}
@@ -875,6 +884,11 @@ export default function OfferteView({ klanten, producten, onWerkbonAangemaakt, m
             </div>
           </div>
 
+          {/* Naam */}
+          {huidig.naam && (
+            <div style={{ fontSize: 18, fontWeight: 700, margin: '8px 0 2px', color: '#1a1a1a' }}>{huidig.naam}</div>
+          )}
+
           {/* Status */}
           <div className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 0', flexWrap: 'wrap' }}>
             <span style={{ fontSize: 13, color: '#888' }}>Status:</span>
@@ -924,7 +938,8 @@ export default function OfferteView({ klanten, producten, onWerkbonAangemaakt, m
               <div key={o.id} className="bon-kaart" onClick={() => { setHuidig(o); setView('detail') }}>
                 <div className="bon-nummer">{o.nummer}</div>
                 <div className="bon-info">
-                  <div className="bon-klant">{o.klant_naam || '(geen naam)'}</div>
+                  {o.naam && <div className="bon-klant" style={{ fontWeight: 600 }}>{o.naam}</div>}
+                  <div className={o.naam ? 'bon-meta' : 'bon-klant'}>{o.klant_naam || '(geen naam)'}</div>
                   <div className="bon-meta">
                     {o.datum && datumNL(o.datum)}
                     {o.geldig_tot && ` · t/m ${datumNL(o.geldig_tot)}`}
