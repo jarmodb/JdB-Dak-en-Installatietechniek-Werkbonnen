@@ -119,19 +119,25 @@ export default function PlanningDeelPage() {
   const [actieveTab, setActieveTab] = useState('planning')
 
   useEffect(() => {
+    window.history.replaceState({ tab: 'planning' }, '')
+
+    function handlePop(e) {
+      const s = e.state
+      if (s?.tab) setActieveTab(s.tab)
+    }
+    window.addEventListener('popstate', handlePop)
+
     async function init() {
       const { data: link } = await supabase
         .from('planning_links').select('*').eq('token', token).single()
       if (!link) { setStatus('ongeldig'); return }
       setMedewerker(link)
 
-      // Check of al ingelogd in sessie
       const sessieSleutel = `pin-auth-${token}`
       if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(sessieSleutel) === 'ok') {
         await laadData(link)
         setStatus('geldig')
       } else {
-        // Geen PIN ingesteld = direct toegang (backwards compat)
         if (!link.pin) {
           await laadData(link)
           setStatus('geldig')
@@ -141,7 +147,13 @@ export default function PlanningDeelPage() {
       }
     }
     init()
+    return () => window.removeEventListener('popstate', handlePop)
   }, [token])
+
+  function wisselTab(tab) {
+    window.history.pushState({ tab }, '')
+    setActieveTab(tab)
+  }
 
   async function laadData(link) {
     document.title = `JdB – ${link.naam}`
@@ -223,10 +235,10 @@ export default function PlanningDeelPage() {
 
       {/* Navigatiebalk */}
       <nav className="bottom-nav">
-        <button className={actieveTab === 'planning' ? 'actief' : ''} onClick={() => setActieveTab('planning')}>
+        <button className={actieveTab === 'planning' ? 'actief' : ''} onClick={() => wisselTab('planning')}>
           <span className="nav-icon">📅</span><span className="nav-label">Planning</span>
         </button>
-        <button className={actieveTab === 'taken' ? 'actief' : ''} onClick={() => setActieveTab('taken')} style={{ position: 'relative' }}>
+        <button className={actieveTab === 'taken' ? 'actief' : ''} onClick={() => wisselTab('taken')} style={{ position: 'relative' }}>
           <span className="nav-icon">✅</span>
           <span className="nav-label">Taken</span>
           {todos.length > 0 && (
@@ -235,7 +247,7 @@ export default function PlanningDeelPage() {
             </span>
           )}
         </button>
-        <button className={actieveTab === 'werkbonnen' ? 'actief' : ''} onClick={() => setActieveTab('werkbonnen')}>
+        <button className={actieveTab === 'werkbonnen' ? 'actief' : ''} onClick={() => wisselTab('werkbonnen')}>
           <span className="nav-icon">📋</span><span className="nav-label">Werkbonnen</span>
         </button>
       </nav>

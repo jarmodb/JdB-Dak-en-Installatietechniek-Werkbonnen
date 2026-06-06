@@ -37,7 +37,19 @@ export default function MedewerkerWerkbonView({ medewerker }) {
   const [materialen, setMaterialen] = useState([])
   const [postcodeBezig, setPostcodeBezig] = useState(false)
 
-  useEffect(() => { laadWerkbonnen() }, [])
+  useEffect(() => {
+    laadWerkbonnen()
+
+    function handlePop(e) {
+      const s = e.state
+      if (!s || s.tab) return  // tab-wisseling afhandelen in parent
+      if (s.medView === 'detail' && s.bon) { setHuidigeBon(s.bon); setView('detail') }
+      else if (s.medView === 'formulier') { setView('formulier') }
+      else { setView('lijst') }
+    }
+    window.addEventListener('popstate', handlePop)
+    return () => window.removeEventListener('popstate', handlePop)
+  }, [])
 
   async function laadWerkbonnen() {
     setLaden(true)
@@ -81,6 +93,7 @@ export default function MedewerkerWerkbonView({ medewerker }) {
   }
 
   function bewerkWerkbon(bon) {
+    window.history.pushState({ medView: 'formulier' }, '')
     setFormulier({
       nummer: bon.nummer || '',
       datum: bon.datum || vandaag(),
@@ -140,6 +153,8 @@ export default function MedewerkerWerkbonView({ medewerker }) {
     setBezig(false)
     await laadWerkbonnen()
     setHuidigeBon(result)
+    // Vervang formulier-state door detail-state zodat back-knop naar lijst gaat
+    window.history.replaceState({ medView: 'detail', bon: result }, '')
     setView('detail')
   }
 
@@ -166,7 +181,7 @@ export default function MedewerkerWerkbonView({ medewerker }) {
         ) : (
           <div className="bon-lijst">
             {werkbonnen.map(bon => (
-              <div key={bon.id} className="bon-kaart" onClick={() => { setHuidigeBon(bon); setView('detail') }}>
+              <div key={bon.id} className="bon-kaart" onClick={() => { window.history.pushState({ medView: 'detail', bon }, ''); setHuidigeBon(bon); setView('detail') }}>
                 <div className="bon-nummer">{bon.nummer}</div>
                 <div className="bon-info">
                   <div className="bon-klant">{bon.klant_naam || '(geen naam)'}</div>
