@@ -542,6 +542,17 @@ export default function WerkbonApp() {
     } else toonOverzicht()
   }
 
+  async function wijzigWerkbonMedewerker(medewerkerId) {
+    const huidig = huidigeBon.medewerkers || []
+    const nieuw = huidig.includes(medewerkerId)
+      ? huidig.filter(id => id !== medewerkerId)
+      : [...huidig, medewerkerId]
+    await supabase.from('werkbonnen').update({ medewerkers: nieuw }).eq('id', huidigeBon.id)
+    const bijgewerkt = { ...huidigeBon, medewerkers: nieuw }
+    setHuidigeBon(bijgewerkt)
+    setWerkbonnen(w => w.map(b => b.id === huidigeBon.id ? bijgewerkt : b))
+  }
+
   async function wisselStatus() {
     if (!huidigeBon) return
     const nieuw = !huidigeBon.gefactureerd
@@ -881,6 +892,24 @@ export default function WerkbonApp() {
               {pdfStatus === 'bezig' && '⏳ PDF opslaan naar OneDrive…'}
               {pdfStatus === 'klaar' && '✅ PDF opgeslagen in OneDrive'}
               {pdfStatus === 'fout' && '⚠️ PDF opslaan naar OneDrive mislukt'}
+            </div>
+          )}
+          {medewerkers.length > 0 && (
+            <div className="bon-medewerkers-blok">
+              <span className="bon-med-label">Zichtbaar voor:</span>
+              <div className="bon-med-chips">
+                {medewerkers.map(m => {
+                  const actief = (huidigeBon.medewerkers || []).includes(m.id)
+                  return (
+                    <button key={m.id} className={`bon-med-chip${actief ? ' actief' : ''}`}
+                      style={actief ? { background: (m.kleur || '#C9A227') + '22', borderColor: m.kleur || '#C9A227', color: m.kleur || '#C9A227' } : {}}
+                      onClick={() => wijzigWerkbonMedewerker(m.id)}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: actief ? (m.kleur || '#C9A227') : '#bbb', display: 'inline-block', marginRight: 5, flexShrink: 0 }} />
+                      {m.naam}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           )}
           <div className="bon-print" ref={bonPrintRef}><BonAfdruk bon={huidigeBon} /></div>

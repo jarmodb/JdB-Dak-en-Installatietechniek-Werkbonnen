@@ -42,8 +42,9 @@ export default function MedewerkerWerkbonView({ medewerker }) {
   async function laadWerkbonnen() {
     setLaden(true)
     const { data } = await supabase.from('werkbonnen').select('*').order('aangemaakt', { ascending: false })
-    // Toon alleen werkbonnen waar deze medewerker in voorkomt
+    // Toon werkbonnen die expliciet zijn toegewezen OF waar medewerker in werkdagen/ritten staat
     const eigen = (data || []).filter(b =>
+      (b.medewerkers || []).includes(medewerker.id) ||
       (b.werkdagen || []).some(w => w.medewerker_id === medewerker.id) ||
       (b.ritten || []).some(r => r.medewerker_id === medewerker.id)
     )
@@ -123,6 +124,7 @@ export default function MedewerkerWerkbonView({ medewerker }) {
       materialen: geldigeMat,
       notities: formulier.notities,
       uren: geldigeWerkdagen.reduce((s, w) => s + w.uren, 0),
+      medewerkers: bewerkModus ? (huidigeBon?.medewerkers || [medewerker.id]) : [medewerker.id],
     }
 
     let result
