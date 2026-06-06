@@ -114,8 +114,6 @@ export default function MedewerkerWerkbonView({ medewerker }) {
       datum: formulier.datum,
       klant_naam: formulier.klant_naam,
       klant_adres: [formulier.klant_straat, formulier.klant_huisnummer].filter(Boolean).join(' '),
-      klant_straat: formulier.klant_straat,
-      klant_huisnummer: formulier.klant_huisnummer,
       klant_postcode: formulier.klant_postcode,
       klant_plaats: formulier.klant_plaats,
       klant_tel: formulier.klant_tel,
