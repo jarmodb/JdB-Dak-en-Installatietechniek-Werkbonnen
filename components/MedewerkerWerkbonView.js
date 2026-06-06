@@ -23,7 +23,7 @@ function leegFormulier(medewerker) {
   }
 }
 
-export default function MedewerkerWerkbonView({ medewerker, view, huidigeBon, onOpenDetail, onBewerken, onOpgeslagen }) {
+export default function MedewerkerWerkbonView({ medewerker, view, huidigeBon, onOpenDetail, onBewerken, onOpgeslagen, onTerugNaarLijst, onTerugNaarDetail }) {
   const [werkbonnen, setWerkbonnen] = useState([])
   const [laden, setLaden] = useState(true)
   const [bewerkModus, setBewerkModus] = useState(false)
@@ -178,7 +178,7 @@ export default function MedewerkerWerkbonView({ medewerker, view, huidigeBon, on
     return (
       <div className="view-content">
         <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-          <button className="form-terug" style={{ margin: 0 }} onClick={() => window.history.back()}>← Terug</button>
+          <button className="form-terug" style={{ margin: 0 }} onClick={onTerugNaarLijst}>← Terug</button>
           <button className="btn btn-primair" onClick={() => bewerkWerkbon(huidigeBon)}>✏️ Bewerken</button>
           <button className="btn btn-sec" onClick={() => window.print()}>🖨️ PDF</button>
         </div>
@@ -246,7 +246,7 @@ export default function MedewerkerWerkbonView({ medewerker, view, huidigeBon, on
   return (
     <div className="view-content form-content">
       <div className="top-acties">
-        <button className="form-terug" onClick={() => window.history.back()}>← Terug</button>
+        <button className="form-terug" onClick={onTerugNaarDetail}>← Terug</button>
         <button className="btn btn-primair" onClick={opslaan} disabled={bezig}>
           {bezig ? 'Opslaan...' : '💾 Opslaan'}
         </button>

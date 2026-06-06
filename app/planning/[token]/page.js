@@ -126,18 +126,10 @@ export default function PlanningDeelPage() {
 
     function handlePop(e) {
       const s = e.state
-      if (!s || s.nav === 'tab') {
-        setActieveTab(s?.tab || 'planning')
-        setWerkbonView('lijst')
-        setHuidigeBon(null)
-      } else if (s.nav === 'werkbon-detail') {
-        setActieveTab('werkbonnen')
-        setHuidigeBon(s.bon)
-        setWerkbonView('detail')
-      } else if (s.nav === 'werkbon-formulier') {
-        setActieveTab('werkbonnen')
-        setWerkbonView('formulier')
-      }
+      const tab = s?.tab || s?.nav === 'tab' ? s?.tab : null
+      setActieveTab(tab || 'planning')
+      setWerkbonView('lijst')
+      setHuidigeBon(null)
     }
     window.addEventListener('popstate', handlePop)
 
@@ -171,24 +163,12 @@ export default function PlanningDeelPage() {
     setHuidigeBon(null)
   }
 
-  function openWerkbonDetail(bon) {
-    window.history.pushState({ nav: 'werkbon-detail', bon }, '')
-    setHuidigeBon(bon)
-    setWerkbonView('detail')
-  }
-
-  function openWerkbonFormulier(bon) {
-    window.history.pushState({ nav: 'werkbon-formulier', bon }, '')
-    setHuidigeBon(bon)
-    setWerkbonView('formulier')
-  }
-
-  function werkbonOpgeslagen(bon) {
-    // Na opslaan: vervang huidige formulier-state zodat back naar detail gaat, niet formulier
-    window.history.replaceState({ nav: 'werkbon-detail', bon }, '')
-    setHuidigeBon(bon)
-    setWerkbonView('detail')
-  }
+  // Binnen werkbonnen: geen history pushes, directe state-updates
+  function openWerkbonDetail(bon)   { setHuidigeBon(bon); setWerkbonView('detail') }
+  function openWerkbonFormulier(bon){ setHuidigeBon(bon); setWerkbonView('formulier') }
+  function toonWerkbonLijst()       { setWerkbonView('lijst'); setHuidigeBon(null) }
+  function toonWerkbonDetail()      { setWerkbonView('detail') }
+  function werkbonOpgeslagen(bon)   { setHuidigeBon(bon); setWerkbonView('detail') }
 
   async function laadData(link) {
     document.title = `JdB – ${link.naam}`
@@ -272,6 +252,8 @@ export default function PlanningDeelPage() {
           onOpenDetail={openWerkbonDetail}
           onBewerken={openWerkbonFormulier}
           onOpgeslagen={werkbonOpgeslagen}
+          onTerugNaarLijst={toonWerkbonLijst}
+          onTerugNaarDetail={toonWerkbonDetail}
         />
       )}
 
