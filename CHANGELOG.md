@@ -7,6 +7,7 @@ Alle wijzigingen per versie worden hier bijgehouden.
 ## v1.3 – 6 juni 2026
 
 ### Nieuw
+- **Medewerker per werkdag**: bij elke gewerkte dag kun je aangeven wie het werk heeft gedaan (gekleurd bolletje met initiaal). Klikken wisselt door de medewerkers. De naam staat ook op de afdruk.
 - **OneDrive PDF-opslag**: bij elke opgeslagen of bijgewerkte werkbon wordt automatisch een PDF opgeslagen in OneDrive (`Werkbonnen / WB-xxx - Klantnaam /`). De vorige PDF wordt overschreven.
 - **Foto's in juiste map**: foto's worden opgeslagen in dezelfde map als de PDF van die werkbon.
 - **Taken afvinken in personeelslink**: medewerkers kunnen hun eigen openstaande taken afvinken via hun persoonlijke planningslink.

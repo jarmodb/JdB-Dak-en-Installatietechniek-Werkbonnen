@@ -10,6 +10,7 @@ import TodoView from '@/components/TodoView'
 const CHANGELOG = [
   {
     versie: 'v1.3', datum: '6 juni 2026', items: [
+      { type: 'nieuw', tekst: 'Medewerker per werkdag instellen via gekleurd bolletje (klikken wisselt door medewerkers)' },
       { type: 'nieuw', tekst: 'Automatisch PDF opslaan naar OneDrive bij elke opgeslagen werkbon' },
       { type: 'nieuw', tekst: 'Foto\'s opgeslagen in dezelfde OneDrive-map als de PDF' },
       { type: 'nieuw', tekst: 'Taken afvinken via persoonlijke planningslink' },
@@ -297,6 +298,7 @@ export default function WerkbonApp() {
   const [materialen, setMaterialen] = useState([])
   const [ritten, setRitten] = useState([])
   const [fotos, setFotos] = useState([])
+  const [medewerkers, setMedewerkers] = useState([])
   const [verwijderModal, setVerwijderModal] = useState(false)
   const [bezig, setBezig] = useState(false)
   const [syncActief, setSyncActief] = useState(false)
@@ -341,7 +343,8 @@ export default function WerkbonApp() {
     return () => { channels.forEach(c => supabase.removeChannel(c)); window.removeEventListener('popstate', handlePopState) }
   }, [])
 
-  async function laadAlles() { await Promise.all([laadWerkbonnen(), laadKlanten(), laadProducten()]) }
+  async function laadAlles() { await Promise.all([laadWerkbonnen(), laadKlanten(), laadProducten(), laadMedewerkers()]) }
+  async function laadMedewerkers() { const { data } = await supabase.from('planning_links').select('*').order('naam'); setMedewerkers(data || []) }
   async function laadWerkbonnen() {
     setLaden(true)
     const { data } = await supabase.from('werkbonnen').select('*').order('aangemaakt', { ascending: false })
@@ -432,7 +435,16 @@ export default function WerkbonApp() {
   }
 
   // Werkdagen
-  function voegWerkdagToe() { setWerkdagen(w => [...w, { datum: vandaag(), omschrijving: '', uren: '' }]) }
+  function voegWerkdagToe() { setWerkdagen(w => [...w, { datum: vandaag(), omschrijving: '', uren: '', medewerker_id: '' }]) }
+  function wisselWerkdagMedewerker(idx) {
+    setWerkdagen(w => w.map((item, i) => {
+      if (i !== idx) return item
+      const huidig = item.medewerker_id || ''
+      const medIdx = medewerkers.findIndex(m => m.id === huidig)
+      const volgend = medewerkers[(medIdx + 1) % (medewerkers.length + 1)]
+      return { ...item, medewerker_id: volgend ? volgend.id : '' }
+    }))
+  }
   function updateWerkdag(idx, key, val) { setWerkdagen(w => w.map((item, i) => i === idx ? { ...item, [key]: val } : item)) }
   function verwijderWerkdag(idx) { setWerkdagen(w => w.filter((_, i) => i !== idx)) }
 
@@ -494,7 +506,10 @@ export default function WerkbonApp() {
 
   async function slaWerkbonOp() {
     setBezig(true)
-    const geldigeWerkdagen = werkdagen.filter(w => w.datum || w.omschrijving || w.uren).map(w => ({ datum: w.datum, omschrijving: w.omschrijving, uren: parseFloat(w.uren) || 0 }))
+    const geldigeWerkdagen = werkdagen.filter(w => w.datum || w.omschrijving || w.uren).map(w => {
+      const med = medewerkers.find(m => m.id === w.medewerker_id)
+      return { datum: w.datum, omschrijving: w.omschrijving, uren: parseFloat(w.uren) || 0, medewerker_id: w.medewerker_id || null, medewerker_naam: med?.naam || null, medewerker_kleur: med?.kleur || null }
+    })
     const geldigeMat = materialen.filter(m => m.omschrijving || m.aantal || m.prijs).map(m => ({ omschrijving: m.omschrijving, aantal: parseFloat(m.aantal) || 0, eenheid: m.eenheid || 'stuk', prijs: parseFloat(m.prijs) || 0 }))
     const totalen = bereken(geldigeWerkdagen, formulier.uurtarief, geldigeMat)
     const rij = {
@@ -708,16 +723,30 @@ export default function WerkbonApp() {
 
           <div className="sectie">
             <div className="sectie-titel">Gewerkte dagen</div>
-            <div className="werkdag-labels"><span className="mat-label" style={{ textAlign: 'left' }}>Datum</span><span className="mat-label" style={{ textAlign: 'left' }}>Omschrijving</span><span className="mat-label">Uren</span><span /></div>
+            <div className="werkdag-labels"><span className="mat-label" style={{ textAlign: 'left' }}>Datum</span><span className="mat-label" style={{ textAlign: 'left' }}>Omschrijving</span><span className="mat-label">Uren</span>{medewerkers.length > 0 && <span />}<span /></div>
             <div className="werkdag-lijst">
-              {werkdagen.map((w, i) => (
-                <div key={i} className="werkdag-rij">
-                  <input type="date" value={w.datum} onChange={e => updateWerkdag(i, 'datum', e.target.value)} />
-                  <input type="text" value={w.omschrijving} onChange={e => updateWerkdag(i, 'omschrijving', e.target.value)} placeholder="Wat gedaan?" />
-                  <input type="number" value={w.uren} onChange={e => updateWerkdag(i, 'uren', e.target.value)} placeholder="0" min="0" step="0.5" style={{ textAlign: 'center' }} />
-                  <button className="btn-verwijder" onClick={() => verwijderWerkdag(i)}>×</button>
-                </div>
-              ))}
+              {werkdagen.map((w, i) => {
+                const med = medewerkers.find(m => m.id === w.medewerker_id)
+                return (
+                  <div key={i} className={`werkdag-rij${medewerkers.length > 0 ? ' met-med' : ''}`}>
+                    <input type="date" value={w.datum} onChange={e => updateWerkdag(i, 'datum', e.target.value)} />
+                    <input type="text" value={w.omschrijving} onChange={e => updateWerkdag(i, 'omschrijving', e.target.value)} placeholder="Wat gedaan?" />
+                    <input type="number" value={w.uren} onChange={e => updateWerkdag(i, 'uren', e.target.value)} placeholder="0" min="0" step="0.5" style={{ textAlign: 'center' }} />
+                    {medewerkers.length > 0 && (
+                      <button
+                        type="button"
+                        className="werkdag-med-knop"
+                        onClick={() => wisselWerkdagMedewerker(i)}
+                        title={med ? med.naam : 'Medewerker toewijzen'}
+                        style={{ background: med ? (med.kleur || '#C9A227') : '#e0e0e0' }}
+                      >
+                        {med ? med.naam.charAt(0).toUpperCase() : '?'}
+                      </button>
+                    )}
+                    <button className="btn-verwijder" onClick={() => verwijderWerkdag(i)}>×</button>
+                  </div>
+                )
+              })}
             </div>
             <button className="btn-toevoegen" onClick={voegWerkdagToe}>+ Dag toevoegen</button>
             {totalen.totalUren > 0 && <div className="uren-totaal">Totaal: <strong>{totalen.totalUren} uur</strong></div>}
@@ -979,7 +1008,22 @@ function BonAfdruk({ bon }) {
             <table>
               <thead><tr><th>Omschrijving</th><th style={{ textAlign: 'center' }}>Aantal</th><th style={{ textAlign: 'right' }}>Prijs</th><th style={{ textAlign: 'right' }}>Totaal</th></tr></thead>
               <tbody>
-                {werkdagen.map((w, i) => <tr key={i}><td>{datumNL(w.datum)}{w.omschrijving ? ` – ${w.omschrijving}` : ''}</td><td style={{ textAlign: 'center' }}>{w.uren} uur</td><td style={{ textAlign: 'right' }}>{euro(bon.uurtarief)}</td><td style={{ textAlign: 'right' }}>{euro(w.uren * bon.uurtarief)}</td></tr>)}
+                {werkdagen.map((w, i) => (
+                  <tr key={i}>
+                    <td>
+                      {datumNL(w.datum)}{w.omschrijving ? ` – ${w.omschrijving}` : ''}
+                      {w.medewerker_naam && (
+                        <span style={{ marginLeft: 8, display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, background: (w.medewerker_kleur || '#C9A227') + '22', color: w.medewerker_kleur || '#C9A227', border: `1px solid ${(w.medewerker_kleur || '#C9A227')}55`, borderRadius: 10, padding: '1px 7px', fontWeight: 600, verticalAlign: 'middle' }}>
+                          <span style={{ width: 7, height: 7, borderRadius: '50%', background: w.medewerker_kleur || '#C9A227', display: 'inline-block' }} />
+                          {w.medewerker_naam}
+                        </span>
+                      )}
+                    </td>
+                    <td style={{ textAlign: 'center' }}>{w.uren} uur</td>
+                    <td style={{ textAlign: 'right' }}>{euro(bon.uurtarief)}</td>
+                    <td style={{ textAlign: 'right' }}>{euro(w.uren * bon.uurtarief)}</td>
+                  </tr>
+                ))}
                 {materialen.map((m, i) => <tr key={`m${i}`}><td>{m.omschrijving}</td><td style={{ textAlign: 'center' }}>{m.aantal} {m.eenheid || 'stuk'}</td><td style={{ textAlign: 'right' }}>{euro(m.prijs)}</td><td style={{ textAlign: 'right' }}>{euro(m.aantal * m.prijs)}</td></tr>)}
               </tbody>
             </table>
