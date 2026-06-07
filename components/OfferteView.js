@@ -502,7 +502,31 @@ function OfferteFormulier({ offerte, offertes, klanten, producten, sjablonen, in
   const tekstRef = useRef(null)
   const autosaveTimerRef = useRef(null)
   const isEersteLaad = useRef(true)
+  const skipAutosaveRef = useRef(false)
+  const dirtyRef = useRef(false)
   const DRAFT_KEY = 'offerte-draft-nieuw'
+
+  // Vult het formulier op basis van een offerte-record — gebruikt bij het veilig
+  // binnenhalen van live-wijzigingen van een collega (zie live-sync hieronder)
+  function vulFormulierVanuitOfferte(o) {
+    skipAutosaveRef.current = true
+    setForm({ ...o, arbeidsposten: migreerArbeidsposten(o) })
+  }
+
+  // ── Live-sync van het open formulier ─────────────────────────────────
+  // Als een collega dezelfde offerte bewerkt en opslaat, ververst dit automatisch
+  // het formulier met de nieuwste data — maar alléén als jijzelf op dat moment
+  // niets onopgeslagens hebt staan (anders zou je eigen werk overschreven worden)
+  useEffect(() => {
+    if (!form.id) return
+    const kanaal = supabase.channel(`of-live-${form.id}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'offertes', filter: `id=eq.${form.id}` }, ({ new: nieuw }) => {
+        if (!nieuw || dirtyRef.current) return
+        vulFormulierVanuitOfferte(nieuw)
+      })
+      .subscribe()
+    return () => supabase.removeChannel(kanaal)
+  }, [form.id])
 
   // Concept herstellen bij nieuw formulier
   useEffect(() => {
@@ -521,9 +545,14 @@ function OfferteFormulier({ offerte, offertes, klanten, producten, sjablonen, in
     }
   }, [])
 
-  // Autosave — 2s na laatste wijziging
+  // Autosave — 0,5s na laatste wijziging (voelt instant aan, maar voorkomt
+  // een aparte database-actie per toetsaanslag)
   useEffect(() => {
     if (isEersteLaad.current) { isEersteLaad.current = false; return }
+    if (skipAutosaveRef.current) { skipAutosaveRef.current = false; return }
+    // "Vuil" zolang er een opslag-actie wacht/loopt — live-updates van een collega
+    // worden dan niet toegepast, om eigen niet-opgeslagen wijzigingen niet te overschrijven
+    dirtyRef.current = true
     if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
     autosaveTimerRef.current = setTimeout(async () => {
       if (form.id) {
@@ -533,6 +562,7 @@ function OfferteFormulier({ offerte, offertes, klanten, producten, sjablonen, in
           const { id, ...data } = form
           const { error } = await supabase.from('offertes').update(saniteerVoorOpslaan(data)).eq('id', id)
           if (!error) {
+            dirtyRef.current = false
             setAutosaveStatus('opgeslagen')
             setTimeout(() => setAutosaveStatus(null), 2500)
           }
@@ -541,11 +571,12 @@ function OfferteFormulier({ offerte, offertes, klanten, producten, sjablonen, in
         // Nieuwe offerte → concept opslaan in localStorage
         try {
           localStorage.setItem(DRAFT_KEY, JSON.stringify(form))
+          dirtyRef.current = false
           setAutosaveStatus('opgeslagen')
           setTimeout(() => setAutosaveStatus(null), 2500)
         } catch {}
       }
-    }, 2000)
+    }, 500)
     return () => clearTimeout(autosaveTimerRef.current)
   }, [JSON.stringify(form)])
 

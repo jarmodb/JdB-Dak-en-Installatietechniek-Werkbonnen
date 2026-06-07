@@ -18,7 +18,7 @@ function leegFormulier() {
   return { nummer: '', datum: vandaag(), klant_naam: '', klant_straat: '', klant_huisnummer: '', klant_postcode: '', klant_plaats: '', klant_tel: '', klant_email: '', omschrijving: '', notities: '' }
 }
 
-export default function MedewerkerWerkbonView({ medewerker, view, huidigeBon, onOpenDetail, onBewerken, onOpgeslagen, onTerugNaarLijst, onTerugNaarDetail }) {
+export default function MedewerkerWerkbonView({ medewerker, view, huidigeBon, onOpenDetail, onBewerken, onOpgeslagen, onTerugNaarLijst, onTerugNaarDetail, onLiveUpdate }) {
   const [werkbonnen, setWerkbonnen] = useState([])
   const [laden, setLaden] = useState(true)
   const [bewerkModus, setBewerkModus] = useState(false)
@@ -36,16 +36,21 @@ export default function MedewerkerWerkbonView({ medewerker, view, huidigeBon, on
   const fotoInputRef = useRef(null)
   const autosaveTimerRef = useRef(null)
   const skipAutosaveRef = useRef(false)
+  const dirtyRef = useRef(false)
 
   useEffect(() => {
     laadWerkbonnen()
     laadProducten()
   }, [])
 
-  // Autosave voor bewerkModus — 2.5s na laatste wijziging
+  // Autosave voor bewerkModus — 0,5s na laatste wijziging (voelt instant aan,
+  // maar voorkomt een aparte database-actie per toetsaanslag)
   useEffect(() => {
     if (view !== 'formulier' || !bewerkModus || !huidigeBon?.id) return
     if (skipAutosaveRef.current) { skipAutosaveRef.current = false; return }
+    // "Vuil" zolang er een opslag-actie wacht/loopt — live-updates van een collega
+    // worden dan niet toegepast, om eigen niet-opgeslagen wijzigingen niet te overschrijven
+    dirtyRef.current = true
     if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
     autosaveTimerRef.current = setTimeout(async () => {
       const geldigeWerkdagen = werkdagen
@@ -66,11 +71,12 @@ export default function MedewerkerWerkbonView({ medewerker, view, huidigeBon, on
       try {
         const { error } = await supabase.from('werkbonnen').update(rij).eq('id', huidigeBon.id)
         if (!error) {
+          dirtyRef.current = false
           setAutosaveStatus('opgeslagen')
           setTimeout(() => setAutosaveStatus(null), 2500)
         }
       } catch {}
-    }, 2500)
+    }, 500)
     return () => clearTimeout(autosaveTimerRef.current)
   }, [JSON.stringify({ formulier, werkdagen, materialen, ritten, fotos })])
 
@@ -196,9 +202,10 @@ export default function MedewerkerWerkbonView({ medewerker, view, huidigeBon, on
   function verwijderFoto(idx) { setFotos(f => f.filter((_, i) => i !== idx)) }
 
   // ── Bewerken laden ──
-  function bewerkWerkbon(bon) {
-    skipAutosaveRef.current = true
-    setBewerkModus(true)
+  // Vult het formulier (en bijbehorende lijsten) op basis van een bon-record —
+  // gebruikt zowel bij het openen voor bewerken als bij het veilig binnenhalen
+  // van live-wijzigingen van een collega (zie live-sync hieronder)
+  function vulFormulierVanuitBon(bon) {
     const adresM = (bon.klant_adres || '').match(/^(.*?)\s+(\d+\S*)$/)
     setFormulier({
       nummer: bon.nummer || '', datum: bon.datum || vandaag(),
@@ -216,8 +223,32 @@ export default function MedewerkerWerkbonView({ medewerker, view, huidigeBon, on
     setMaterialen(bon.materialen || [])
     setRitten(bon.ritten?.length ? bon.ritten : [])
     setFotos(bon.fotos || [])
+  }
+
+  function bewerkWerkbon(bon) {
+    skipAutosaveRef.current = true
+    setBewerkModus(true)
+    vulFormulierVanuitBon(bon)
     onBewerken(bon)
   }
+
+  // ── Live-sync van het open formulier ─────────────────────────────────
+  // Als een collega (of Jordy zelf via een ander apparaat) dezelfde bon bewerkt
+  // en opslaat, ververst dit automatisch het formulier met de nieuwste data —
+  // maar alléén als jijzelf op dat moment niets onopgeslagens hebt staan
+  useEffect(() => {
+    if (view !== 'formulier' || !bewerkModus || !huidigeBon?.id) return
+    const kanaal = supabase.channel(`mw-wb-live-${huidigeBon.id}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'werkbonnen', filter: `id=eq.${huidigeBon.id}` }, ({ new: nieuw }) => {
+        if (!nieuw || dirtyRef.current) return
+        skipAutosaveRef.current = true
+        vulFormulierVanuitBon(nieuw)
+        setWerkbonnen(w => w.map(b => b.id === nieuw.id ? nieuw : b))
+        onLiveUpdate?.(nieuw)
+      })
+      .subscribe()
+    return () => supabase.removeChannel(kanaal)
+  }, [view, bewerkModus, huidigeBon?.id])
 
   // ── Opslaan ──
   async function opslaan() {

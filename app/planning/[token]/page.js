@@ -281,6 +281,7 @@ export default function PlanningDeelPage() {
           onOpgeslagen={werkbonOpgeslagen}
           onTerugNaarLijst={toonWerkbonLijst}
           onTerugNaarDetail={toonWerkbonDetail}
+          onLiveUpdate={setHuidigeBon}
         />
       )}
 
