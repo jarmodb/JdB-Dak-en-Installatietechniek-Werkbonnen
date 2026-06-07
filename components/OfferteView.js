@@ -21,6 +21,7 @@ const VARIABELEN = [
   { key: '{uren}',             label: 'Totaal uren' },
   { key: '{uurtarief}',        label: 'Uurtarief' },
   { key: '{arbeidskosten}',    label: 'Arbeidskosten' },
+  { key: '{korting}',          label: 'Korting' },
   { key: '{subtotaal}',        label: 'Subtotaal' },
   { key: '{btw_bedrag}',       label: 'BTW bedrag' },
   { key: '{totaal}',           label: 'Totaal incl. BTW' },
@@ -47,6 +48,15 @@ function arbeidspostenVan(form) {
   return (form.arbeidsposten || []).filter(a => a.omschrijving || (parseFloat(a.uren) || 0) > 0)
 }
 
+// Berekent het kortingsbedrag op basis van het gekozen type (percentage of vast bedrag).
+// Geeft 0 terug als er niets is ingevuld — dan blijft de korting ook van de offerte weg.
+function berekenKorting(form, subtotaal) {
+  const waarde = parseFloat(form.korting_waarde) || 0
+  if (!waarde) return 0
+  if (form.korting_type === 'bedrag') return Math.min(waarde, subtotaal)
+  return subtotaal * (waarde / 100)   // standaard: percentage
+}
+
 function berekenTotalen(form) {
   const materialen = form.materialen || []
   const subtotaalMat = materialen.reduce((s, m) => s + (parseFloat(m.aantal) || 0) * (parseFloat(m.stukprijs) || 0), 0)
@@ -54,9 +64,11 @@ function berekenTotalen(form) {
   const totaalUren = posten.reduce((s, a) => s + (parseFloat(a.uren) || 0), 0)
   const arbeidskosten = totaalUren * (parseFloat(form.uurtarief) || 0)
   const subtotaal = subtotaalMat + arbeidskosten
-  const btw_bedrag = subtotaal * (parseFloat(form.btw_percentage ?? 21) / 100)
-  const totaal = subtotaal + btw_bedrag
-  return { subtotaalMat, totaalUren, arbeidskosten, subtotaal, btw_bedrag, totaal }
+  const korting_bedrag = berekenKorting(form, subtotaal)
+  const subtotaalNaKorting = subtotaal - korting_bedrag
+  const btw_bedrag = subtotaalNaKorting * (parseFloat(form.btw_percentage ?? 21) / 100)
+  const totaal = subtotaalNaKorting + btw_bedrag
+  return { subtotaalMat, totaalUren, arbeidskosten, subtotaal, korting_bedrag, subtotaalNaKorting, btw_bedrag, totaal }
 }
 
 function materiaaltekst(materialen) {
@@ -81,6 +93,7 @@ function verwerkVariabelen(tekst, form) {
     .replace(/{uren}/g, String(t.totaalUren || '0'))
     .replace(/{uurtarief}/g, euro(form.uurtarief))
     .replace(/{arbeidskosten}/g, euro(t.arbeidskosten))
+    .replace(/{korting}/g, t.korting_bedrag > 0 ? euro(t.korting_bedrag) : '')
     .replace(/{subtotaal}/g, euro(t.subtotaal))
     .replace(/{btw_bedrag}/g, euro(t.btw_bedrag))
     .replace(/{totaal}/g, euro(t.totaal))
@@ -270,6 +283,12 @@ function OffertePrint({ offerte, instellingen = {} }) {
           <span>Subtotaal (excl. BTW)</span>
           <span>{euro(t.subtotaal)}</span>
         </div>
+        {t.korting_bedrag > 0 && (
+          <div className="offerte-print-totaal-rij">
+            <span>Korting{offerte.korting_type === 'percentage' ? ` (${parseFloat(offerte.korting_waarde) || 0}%)` : ''}</span>
+            <span>− {euro(t.korting_bedrag)}</span>
+          </div>
+        )}
         <div className="offerte-print-totaal-rij">
           <span>BTW ({offerte.btw_percentage}%)</span>
           <span>{euro(t.btw_bedrag)}</span>
@@ -493,6 +512,8 @@ function OfferteFormulier({ offerte, offertes, klanten, producten, sjablonen, in
       arbeidsposten: [{ omschrijving: '', uren: '' }],
       uurtarief: 65,
       btw_percentage: 21,
+      korting_type: 'percentage',
+      korting_waarde: '',
       notities: '',
       status: 'concept',
     }
@@ -594,6 +615,8 @@ function OfferteFormulier({ offerte, offertes, klanten, producten, sjablonen, in
       uren: arbeidsposten.reduce((s, a) => s + (parseFloat(a.uren) || 0), 0) || null,
       uurtarief: data.uurtarief === '' || data.uurtarief == null ? null : parseFloat(data.uurtarief) || 0,
       btw_percentage: data.btw_percentage === '' || data.btw_percentage == null ? 21 : parseFloat(data.btw_percentage),
+      korting_type: data.korting_type === 'bedrag' ? 'bedrag' : 'percentage',
+      korting_waarde: data.korting_waarde === '' || data.korting_waarde == null ? null : parseFloat(data.korting_waarde) || 0,
       materialen: (data.materialen || []).map(m => ({
         ...m,
         aantal: m.aantal === '' ? 0 : parseFloat(m.aantal) || 0,
@@ -870,10 +893,29 @@ function OfferteFormulier({ offerte, offertes, klanten, producten, sjablonen, in
             </select>
           </div>
         </div>
+
+        <div className="veld-rij">
+          <div className="veld" style={{ flex: 1 }}>
+            <label>Korting</label>
+            <select value={form.korting_type || 'percentage'} onChange={e => sv('korting_type', e.target.value)}>
+              <option value="percentage">Percentage (%)</option>
+              <option value="bedrag">Vast bedrag (€)</option>
+            </select>
+          </div>
+          <div className="veld" style={{ flex: 1 }}>
+            <label>{form.korting_type === 'bedrag' ? 'Kortingsbedrag (€)' : 'Korting (%)'}</label>
+            <input type="number" value={form.korting_waarde ?? ''} onChange={e => sv('korting_waarde', e.target.value)}
+              placeholder="Laat leeg voor geen korting" min="0" step={form.korting_type === 'bedrag' ? '0.01' : '0.5'} />
+          </div>
+        </div>
+
         <div className="offerte-totaal-blok">
           {t.arbeidskosten > 0 && <div className="offerte-totaal-rij"><span>Arbeid ({t.totaalUren} uur × {euro(form.uurtarief)})</span><span>{euro(t.arbeidskosten)}</span></div>}
           {t.subtotaalMat > 0 && <div className="offerte-totaal-rij"><span>Materialen</span><span>{euro(t.subtotaalMat)}</span></div>}
           <div className="offerte-totaal-rij"><span>Subtotaal</span><span>{euro(t.subtotaal)}</span></div>
+          {t.korting_bedrag > 0 && (
+            <div className="offerte-totaal-rij"><span>Korting{form.korting_type === 'percentage' ? ` (${parseFloat(form.korting_waarde) || 0}%)` : ''}</span><span>− {euro(t.korting_bedrag)}</span></div>
+          )}
           <div className="offerte-totaal-rij"><span>BTW ({form.btw_percentage}%)</span><span>{euro(t.btw_bedrag)}</span></div>
           <div className="offerte-totaal-rij totaal"><span>Totaal incl. BTW</span><span>{euro(t.totaal)}</span></div>
         </div>
