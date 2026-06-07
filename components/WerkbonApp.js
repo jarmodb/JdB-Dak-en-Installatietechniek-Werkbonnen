@@ -1363,6 +1363,11 @@ function InstellingenView({ instellingen, onChange }) {
           <div className="veld"><label>E-mail</label><input value={form.email || ''} onChange={e => sv('email', e.target.value)} placeholder="info@bedrijf.nl" /></div>
         </div>
         <div className="veld"><label>Website</label><input value={form.website || ''} onChange={e => sv('website', e.target.value)} placeholder="www.bedrijf.nl" /></div>
+        <div className="veld">
+          <label>Ondertekenaar (offertes)</label>
+          <input value={form.ondertekenaar || ''} onChange={e => sv('ondertekenaar', e.target.value)} placeholder="J. de Blaeij" />
+          <div style={{ fontSize: 12, color: '#aaa', marginTop: 4 }}>Naam die onderaan offertes komt te staan bij &ldquo;Met vriendelijke groet,&rdquo;</div>
+        </div>
       </div>
       <div className="sectie">
         <div className="sectie-titel">Financieel</div>

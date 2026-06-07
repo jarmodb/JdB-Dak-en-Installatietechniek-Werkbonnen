@@ -155,8 +155,8 @@ function OffertePrint({ offerte, instellingen = {} }) {
           </div>
         </div>
         <div className="offerte-print-nummers">
-          <div><strong>Nummer:</strong> {offerte.nummer}</div>
-          <div><strong>Datum:</strong> {datumNL(offerte.datum)}</div>
+          <div><strong>Offertenummer:</strong> {offerte.nummer}</div>
+          <div><strong>Offerte datum:</strong> {datumNL(offerte.datum)}</div>
           {offerte.geldig_tot && <div><strong>Geldig tot:</strong> {datumNL(offerte.geldig_tot)}</div>}
           {offerte.naam && <div style={{ marginTop: 4, fontWeight: 700, color: '#1a1a1a' }}>{offerte.naam}</div>}
         </div>
@@ -169,8 +169,10 @@ function OffertePrint({ offerte, instellingen = {} }) {
         {offerte.klant_email && <div>{offerte.klant_email}</div>}
       </div>
 
+      <p style={{ margin: '0 0 12px' }}>{offerte.klant_naam ? `Geachte ${offerte.klant_naam},` : 'Geachte heer/mevrouw,'}</p>
+
       {tekst && (
-        <div className="offerte-print-tekst">
+        <div className="offerte-print-tekst" style={{ borderLeft: 'none', paddingLeft: 0 }}>
           {tekst.split('\n').map((r, i) => <p key={i} style={{ margin: '0 0 4px' }}>{r || <br />}</p>)}
         </div>
       )}
@@ -236,18 +238,16 @@ function OffertePrint({ offerte, instellingen = {} }) {
 
       <div className="offerte-print-footer">
         <p>Wij vertrouwen erop u hiermee een passend aanbod te hebben gedaan. Voor vragen kunt u contact met ons opnemen.</p>
-        <div className="offerte-print-akkoord">
-          <div>
-            <div className="offerte-akkoord-lijn" />
-            <div className="offerte-akkoord-label">Naam</div>
+        <div style={{ display: 'flex', gap: 32, marginTop: 24, flexWrap: 'wrap', fontStyle: 'italic', color: '#555' }}>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div>Met vriendelijke groet,</div>
+            <div style={{ marginTop: 22 }}>{instellingen.ondertekenaar || bedrijfsnaam}</div>
+            {instellingen.ondertekenaar && <div>{bedrijfsnaam}</div>}
           </div>
-          <div>
-            <div className="offerte-akkoord-lijn" />
-            <div className="offerte-akkoord-label">Datum</div>
-          </div>
-          <div>
-            <div className="offerte-akkoord-lijn" />
-            <div className="offerte-akkoord-label">Handtekening</div>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div>Handtekening voor akkoord:</div>
+            <div style={{ marginTop: 22 }}>Plaats: ……………………………………</div>
+            <div style={{ marginTop: 8 }}>Datum: ……………………………………</div>
           </div>
         </div>
       </div>
