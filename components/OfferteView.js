@@ -18,13 +18,14 @@ const VARIABELEN = [
   { key: '{klant_naam}',       label: 'Klantnaam' },
   { key: '{datum}',            label: 'Datum' },
   { key: '{geldig_tot}',       label: 'Geldig tot' },
-  { key: '{uren}',             label: 'Uren' },
+  { key: '{uren}',             label: 'Totaal uren' },
   { key: '{uurtarief}',        label: 'Uurtarief' },
   { key: '{arbeidskosten}',    label: 'Arbeidskosten' },
   { key: '{subtotaal}',        label: 'Subtotaal' },
   { key: '{btw_bedrag}',       label: 'BTW bedrag' },
   { key: '{totaal}',           label: 'Totaal incl. BTW' },
   { key: '{materialen_lijst}', label: 'Materialen als tekst' },
+  { key: '{arbeid_lijst}',     label: 'Werkzaamheden als tekst' },
 ]
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -40,19 +41,33 @@ function genNummer(offertes, prefix = 'OFN') {
   return `${p}${String((nrs.length ? Math.max(...nrs) : 0) + 1).padStart(3, '0')}`
 }
 
+// Haalt de bruikbare uren-posten op — ondersteunt zowel het nieuwe `arbeidsposten` (lijst met
+// omschrijving + uren) als het oude losse `uren`-veld van bestaande offertes (zie migratie hieronder)
+function arbeidspostenVan(form) {
+  return (form.arbeidsposten || []).filter(a => a.omschrijving || (parseFloat(a.uren) || 0) > 0)
+}
+
 function berekenTotalen(form) {
   const materialen = form.materialen || []
   const subtotaalMat = materialen.reduce((s, m) => s + (parseFloat(m.aantal) || 0) * (parseFloat(m.stukprijs) || 0), 0)
-  const arbeidskosten = (parseFloat(form.uren) || 0) * (parseFloat(form.uurtarief) || 0)
+  const posten = arbeidspostenVan(form)
+  const totaalUren = posten.reduce((s, a) => s + (parseFloat(a.uren) || 0), 0)
+  const arbeidskosten = totaalUren * (parseFloat(form.uurtarief) || 0)
   const subtotaal = subtotaalMat + arbeidskosten
   const btw_bedrag = subtotaal * (parseFloat(form.btw_percentage ?? 21) / 100)
   const totaal = subtotaal + btw_bedrag
-  return { subtotaalMat, arbeidskosten, subtotaal, btw_bedrag, totaal }
+  return { subtotaalMat, totaalUren, arbeidskosten, subtotaal, btw_bedrag, totaal }
 }
 
 function materiaaltekst(materialen) {
   return (materialen || []).filter(m => m.naam).map(m =>
     `- ${m.naam}: ${m.aantal} ${m.eenheid || 'stuk'} à ${euro(m.stukprijs)}`
+  ).join('\n')
+}
+
+function arbeidstekst(arbeidsposten) {
+  return (arbeidsposten || []).filter(a => a.omschrijving).map(a =>
+    `- ${a.omschrijving}: ${a.uren || 0} uur`
   ).join('\n')
 }
 
@@ -63,13 +78,24 @@ function verwerkVariabelen(tekst, form) {
     .replace(/{klant_naam}/g, form.klant_naam || '')
     .replace(/{datum}/g, datumNL(form.datum))
     .replace(/{geldig_tot}/g, datumNL(form.geldig_tot))
-    .replace(/{uren}/g, String(form.uren || '0'))
+    .replace(/{uren}/g, String(t.totaalUren || '0'))
     .replace(/{uurtarief}/g, euro(form.uurtarief))
     .replace(/{arbeidskosten}/g, euro(t.arbeidskosten))
     .replace(/{subtotaal}/g, euro(t.subtotaal))
     .replace(/{btw_bedrag}/g, euro(t.btw_bedrag))
     .replace(/{totaal}/g, euro(t.totaal))
     .replace(/{materialen_lijst}/g, materiaaltekst(form.materialen))
+    .replace(/{arbeid_lijst}/g, arbeidstekst(form.arbeidsposten))
+}
+
+// Migreert een offerte van het oude losse `uren`-veld naar de nieuwe `arbeidsposten`-lijst
+// (zodat bestaande offertes met ingevulde uren niet leeg lijken bij het openen)
+function migreerArbeidsposten(form) {
+  if (form.arbeidsposten && form.arbeidsposten.length) return form.arbeidsposten
+  if (form.uren && parseFloat(form.uren) > 0) {
+    return [{ omschrijving: 'Werkzaamheden', uren: form.uren }]
+  }
+  return [{ omschrijving: '', uren: '' }]
 }
 
 // ── Klant autocomplete ────────────────────────────────────────────────
@@ -177,6 +203,28 @@ function OffertePrint({ offerte, instellingen = {} }) {
         </div>
       )}
 
+      {(offerte.arbeidsposten || []).some(a => a.omschrijving) && (
+        <div className="offerte-print-sectie">
+          <div className="offerte-print-sectie-titel">Specificatie werkzaamheden</div>
+          <table className="offerte-print-tabel">
+            <thead>
+              <tr>
+                <th>Omschrijving</th>
+                <th style={{ textAlign: 'right' }}>Uren</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(offerte.arbeidsposten || []).filter(a => a.omschrijving).map((a, i) => (
+                <tr key={i}>
+                  <td>{a.omschrijving}</td>
+                  <td style={{ textAlign: 'right' }}>{a.uren || 0} uur</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {offerte.materialen_tonen && (offerte.materialen || []).some(m => m.naam) && (
         <div className="offerte-print-sectie">
           <div className="offerte-print-sectie-titel">Specificatie materialen</div>
@@ -208,7 +256,7 @@ function OffertePrint({ offerte, instellingen = {} }) {
       <div className="offerte-print-totalen">
         {t.arbeidskosten > 0 && (
           <div className="offerte-print-totaal-rij">
-            <span>Arbeid ({offerte.uren} uur × {euro(offerte.uurtarief)})</span>
+            <span>Arbeid ({t.totaalUren} uur × {euro(offerte.uurtarief)})</span>
             <span>{euro(t.arbeidskosten)}</span>
           </div>
         )}
@@ -431,19 +479,23 @@ function SjablonenView({ onTerug }) {
 
 // ── Offerte formulier ─────────────────────────────────────────────────
 function OfferteFormulier({ offerte, offertes, klanten, producten, sjablonen, instellingen = {}, onOpslaan, onAnnuleer }) {
-  const [form, setForm] = useState(() => offerte ? { ...offerte } : {
-    nummer: genNummer(offertes, instellingen.offerte_prefix || 'OFN'),
-    naam: '',
-    datum: vandaag(),
-    geldig_tot: addDagen(vandaag(), 30),
-    klant_naam: '', klant_adres: '', klant_postcode: '', klant_plaats: '', klant_email: '',
-    tekst: '',
-    materialen: [],
-    materialen_tonen: true,
-    uren: '', uurtarief: 65,
-    btw_percentage: 21,
-    notities: '',
-    status: 'concept',
+  const [form, setForm] = useState(() => {
+    if (offerte) return { ...offerte, arbeidsposten: migreerArbeidsposten(offerte) }
+    return {
+      nummer: genNummer(offertes, instellingen.offerte_prefix || 'OFN'),
+      naam: '',
+      datum: vandaag(),
+      geldig_tot: addDagen(vandaag(), 30),
+      klant_naam: '', klant_adres: '', klant_postcode: '', klant_plaats: '', klant_email: '',
+      tekst: '',
+      materialen: [],
+      materialen_tonen: true,
+      arbeidsposten: [{ omschrijving: '', uren: '' }],
+      uurtarief: 65,
+      btw_percentage: 21,
+      notities: '',
+      status: 'concept',
+    }
   })
   const [bezig, setBezig] = useState(false)
   const [autosaveStatus, setAutosaveStatus] = useState(null) // null | 'opslaan' | 'opgeslagen'
@@ -500,9 +552,15 @@ function OfferteFormulier({ offerte, offertes, klanten, producten, sjablonen, in
   function sv(k, v) { setForm(f => ({ ...f, [k]: v })) }
 
   function saniteerVoorOpslaan(data) {
+    const arbeidsposten = (data.arbeidsposten || [])
+      .filter(a => a.omschrijving || (parseFloat(a.uren) || 0) > 0)
+      .map(a => ({ ...a, uren: a.uren === '' ? 0 : parseFloat(a.uren) || 0 }))
     return {
       ...data,
-      uren: data.uren === '' || data.uren == null ? null : parseFloat(data.uren) || 0,
+      arbeidsposten,
+      // `uren` blijft bijgewerkt als som van de posten — voor terugwaartse compatibiliteit
+      // (oude rapportages/variabelen die nog naar het losse uren-veld kijken)
+      uren: arbeidsposten.reduce((s, a) => s + (parseFloat(a.uren) || 0), 0) || null,
       uurtarief: data.uurtarief === '' || data.uurtarief == null ? null : parseFloat(data.uurtarief) || 0,
       btw_percentage: data.btw_percentage === '' || data.btw_percentage == null ? 21 : parseFloat(data.btw_percentage),
       materialen: (data.materialen || []).map(m => ({
@@ -511,6 +569,18 @@ function OfferteFormulier({ offerte, offertes, klanten, producten, sjablonen, in
         stukprijs: m.stukprijs === '' ? 0 : parseFloat(m.stukprijs) || 0,
       })),
     }
+  }
+
+  function voegArbeidspostToe() {
+    sv('arbeidsposten', [...(form.arbeidsposten || []), { omschrijving: '', uren: '' }])
+  }
+
+  function updateArbeidspost(idx, k, v) {
+    const a = [...(form.arbeidsposten || [])]; a[idx] = { ...a[idx], [k]: v }; sv('arbeidsposten', a)
+  }
+
+  function verwijderArbeidspost(idx) {
+    sv('arbeidsposten', (form.arbeidsposten || []).filter((_, i) => i !== idx))
   }
 
   function klantSelecteren(k) {
@@ -728,14 +798,39 @@ function OfferteFormulier({ offerte, offertes, klanten, producten, sjablonen, in
       {/* Arbeid & BTW */}
       <div className="sectie">
         <div className="sectie-titel">Arbeid & BTW</div>
-        <div className="veld-rij">
-          <div className="veld" style={{ flex: 1 }}>
-            <label>Uren</label>
-            <input type="number" value={form.uren || ''} onChange={e => sv('uren', e.target.value)} placeholder="0" min="0" step="0.5" />
+
+        <label style={{ fontSize: 13, fontWeight: 500, display: 'block', marginBottom: 6 }}>Werkzaamheden / uren</label>
+        {(form.arbeidsposten || []).length === 0 && (
+          <p style={{ color: '#aaa', fontSize: 13, marginBottom: 8 }}>Nog geen werkzaamheden toegevoegd.</p>
+        )}
+        {(form.arbeidsposten || []).map((a, i) => (
+          <div key={i} className="werkdag-item">
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+              <div style={{ flex: '2 1 200px' }}>
+                <input value={a.omschrijving} onChange={e => updateArbeidspost(i, 'omschrijving', e.target.value)}
+                  placeholder="Omschrijving (bijv. Voorbereiding, Uitvoering, Oplevering)" style={{ width: '100%' }} />
+              </div>
+              <div style={{ flex: '0 0 90px' }}>
+                <input type="number" value={a.uren} onChange={e => updateArbeidspost(i, 'uren', e.target.value)}
+                  placeholder="Uren" min="0" step="0.5" style={{ width: '100%' }} />
+              </div>
+              <div style={{ flex: '0 0 50px', textAlign: 'right', fontSize: 13, color: '#555' }}>
+                {a.uren ? `${a.uren} uur` : ''}
+              </div>
+              <button onClick={() => verwijderArbeidspost(i)} className="btn-verwijder">×</button>
+            </div>
           </div>
+        ))}
+        <button className="btn btn-licht" style={{ marginTop: 8, marginBottom: 16 }} onClick={voegArbeidspostToe}>+ Werkzaamheid toevoegen</button>
+
+        <div className="veld-rij">
           <div className="veld" style={{ flex: 1 }}>
             <label>Uurtarief (€)</label>
             <input type="number" value={form.uurtarief || ''} onChange={e => sv('uurtarief', e.target.value)} placeholder="65" min="0" step="0.5" />
+          </div>
+          <div className="veld" style={{ flex: 1 }}>
+            <label>Totaal uren</label>
+            <input value={t.totaalUren ? `${t.totaalUren} uur` : '0 uur'} disabled style={{ color: '#888' }} />
           </div>
           <div className="veld" style={{ flex: 1 }}>
             <label>BTW %</label>
@@ -745,7 +840,7 @@ function OfferteFormulier({ offerte, offertes, klanten, producten, sjablonen, in
           </div>
         </div>
         <div className="offerte-totaal-blok">
-          {t.arbeidskosten > 0 && <div className="offerte-totaal-rij"><span>Arbeid</span><span>{euro(t.arbeidskosten)}</span></div>}
+          {t.arbeidskosten > 0 && <div className="offerte-totaal-rij"><span>Arbeid ({t.totaalUren} uur × {euro(form.uurtarief)})</span><span>{euro(t.arbeidskosten)}</span></div>}
           {t.subtotaalMat > 0 && <div className="offerte-totaal-rij"><span>Materialen</span><span>{euro(t.subtotaalMat)}</span></div>}
           <div className="offerte-totaal-rij"><span>Subtotaal</span><span>{euro(t.subtotaal)}</span></div>
           <div className="offerte-totaal-rij"><span>BTW ({form.btw_percentage}%)</span><span>{euro(t.btw_bedrag)}</span></div>
