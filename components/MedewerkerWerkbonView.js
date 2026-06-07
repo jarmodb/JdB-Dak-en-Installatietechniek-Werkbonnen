@@ -442,13 +442,13 @@ export default function MedewerkerWerkbonView({ medewerker, view, huidigeBon, on
     <div className="view-content form-content">
       <div className="top-acties">
         <button className="form-terug" onClick={onTerugNaarDetail}>← Terug</button>
-        {autosaveStatus && (
-          <span style={{ fontSize: 12, color: autosaveStatus === 'opslaan' ? '#C9A227' : '#52c41a', alignSelf: 'center', flex: 1, textAlign: 'center' }}>
-            {autosaveStatus === 'opslaan' ? '⏳ Opslaan...' : '✓ Automatisch opgeslagen'}
-          </span>
-        )}
         <button className="btn btn-primair" onClick={opslaan} disabled={bezig}>{bezig ? 'Opslaan...' : '💾 Opslaan'}</button>
       </div>
+      {autosaveStatus && (
+        <div className={`autosave-toast ${autosaveStatus}`}>
+          {autosaveStatus === 'opslaan' ? '⏳ Opslaan...' : '✓ Automatisch opgeslagen'}
+        </div>
+      )}
 
       {/* Basisinfo */}
       <div className="sectie">

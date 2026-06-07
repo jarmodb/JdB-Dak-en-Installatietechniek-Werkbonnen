@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 
 // ── Constanten ───────────────────────────────────────────────────────
@@ -151,7 +151,7 @@ export function AfspraakKaart({ a, medewerkers, werkbonnen, onClick, onBonKlik, 
 }
 
 // ── Afspraak formulier ────────────────────────────────────────────────
-function AfspraakForm({ form, setForm, klanten, werkbonnen, medewerkers, onOpslaan, onVerwijder, onAnnuleer, bezig }) {
+function AfspraakForm({ form, setForm, klanten, werkbonnen, medewerkers, onOpslaan, onVerwijder, onAnnuleer, bezig, autosaveStatus }) {
   function sv(k, v) { setForm(f => ({ ...f, [k]: v })) }
 
   function klantSelecteren(klant) {
@@ -190,6 +190,11 @@ function AfspraakForm({ form, setForm, klanten, werkbonnen, medewerkers, onOpsla
           <button className="btn btn-primair" onClick={onOpslaan} disabled={bezig}>{bezig ? 'Opslaan...' : '✓ Opslaan'}</button>
         </div>
       </div>
+      {autosaveStatus && (
+        <div className={`autosave-toast ${autosaveStatus}`}>
+          {autosaveStatus === 'opslaan' ? '⏳ Automatisch opslaan...' : '✓ Automatisch opgeslagen'}
+        </div>
+      )}
 
       <div className="sectie">
         <div className="sectie-titel">{form.id ? 'Afspraak bewerken' : 'Nieuwe afspraak'}</div>
@@ -625,6 +630,14 @@ export default function PlanningView({ klanten, werkbonnen, onWerkbonNavigeer })
   const [medView, setMedView] = useState(false)
   const [filterMed, setFilterMed] = useState('')
   const [bezig, setBezig] = useState(false)
+  const [autosaveStatus, setAutosaveStatus] = useState(null) // null | 'opslaan' | 'opgeslagen'
+  const autosaveTimerRef = useRef(null)
+  const dirtyRef = useRef(false)
+  // Onthoudt welke medewerkers de afspraak had bij het openen/laatste opslag —
+  // zo sturen we meldingen alleen naar écht nieuw toegevoegde medewerkers (ook bij autosave)
+  const oorspronkelijkeMedewerkersRef = useRef([])
+  // Volgt welke afspraak open staat, zodat de autosave niet meteen afgaat na het openen
+  const formIdentiteitRef = useRef(null)
 
   useEffect(() => {
     laad()
@@ -658,9 +671,9 @@ export default function PlanningView({ klanten, werkbonnen, onWerkbonNavigeer })
     if (!form.titel?.trim()) { alert('Titel is verplicht'); return }
     setBezig(true)
 
-    // Bepaal welke medewerkers nieuw zijn toegevoegd
-    const oudeAfspraak = form.id ? afspraken.find(a => a.id === form.id) : null
-    const oudeMeds = oudeAfspraak ? getMedewerkers(oudeAfspraak) : []
+    // Bepaal welke medewerkers nieuw zijn toegevoegd t.o.v. de laatst opgeslagen versie
+    // (via de ref, niet de lijst — die kan door autosave/realtime al zijn bijgewerkt)
+    const oudeMeds = oorspronkelijkeMedewerkersRef.current
     const nieuweMeds = form.medewerkers || []
     const toegevoegd = nieuweMeds.filter(id => !oudeMeds.includes(id))
 
@@ -696,6 +709,10 @@ export default function PlanningView({ klanten, werkbonnen, onWerkbonNavigeer })
       }
     }
 
+    oorspronkelijkeMedewerkersRef.current = nieuweMeds
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
+    dirtyRef.current = false
+    setAutosaveStatus(null)
     await laadAfspraken(); setBezig(false); setForm(null)
   }
 
@@ -707,12 +724,69 @@ export default function PlanningView({ klanten, werkbonnen, onWerkbonNavigeer })
 
   function dagKlik(dagStr) { setRefDatum(parseDate(dagStr)); setViewMode('dag') }
   function afspraakKlik(a) {
+    oorspronkelijkeMedewerkersRef.current = getMedewerkers(a)
     setForm({ ...a, werkbon_id: a.werkbon_id || '', medewerkers: getMedewerkers(a) })
   }
 
+  // Autosave — 0,5s na laatste wijziging, alleen voor bestaande afspraken (met id).
+  // Nieuwe afspraken worden pas aangemaakt via de "Opslaan"-knop (zo ontstaan er geen
+  // lege concept-afspraken in ieders agenda en geen voortijdige meldings-mails).
+  useEffect(() => {
+    if (!form?.id) { formIdentiteitRef.current = null; return }
+    if (formIdentiteitRef.current !== form.id) {
+      formIdentiteitRef.current = form.id
+      return // verse afspraak geopend — niet meteen autosaven
+    }
+    if (!form.titel?.trim()) return
+
+    dirtyRef.current = true
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
+    autosaveTimerRef.current = setTimeout(async () => {
+      setAutosaveStatus('opslaan')
+      try {
+        const oudeMeds = oorspronkelijkeMedewerkersRef.current
+        const nieuweMeds = form.medewerkers || []
+        const toegevoegd = nieuweMeds.filter(id => !oudeMeds.includes(id))
+
+        const { id, aangemaakt, toegewezen_aan, ...data } = form
+        const saveData = { ...data, werkbon_id: data.werkbon_id || null, medewerkers: nieuweMeds }
+        const { error } = await supabase.from('planning').update(saveData).eq('id', id)
+        if (!error) {
+          for (const medId of toegevoegd) {
+            const med = medewerkers.find(m => m.id === medId)
+            if (med?.email && (med.meldingen ?? true)) {
+              fetch('/api/stuur-melding', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'planning',
+                  email: med.email,
+                  naam: med.naam,
+                  titel: form.titel,
+                  datum: form.datum,
+                  tijdstipVan: form.tijdstip_van,
+                  tijdstipTot: form.tijdstip_tot,
+                  klantNaam: form.klant_naam,
+                  klantAdres: form.klant_adres,
+                  token: med.token,
+                  origin: window.location.origin,
+                }),
+              }).catch(err => console.warn('Planning melding mislukt:', err))
+            }
+          }
+          oorspronkelijkeMedewerkersRef.current = nieuweMeds
+          dirtyRef.current = false
+          setAutosaveStatus('opgeslagen')
+          setTimeout(() => setAutosaveStatus(null), 2500)
+        }
+      } catch {}
+    }, 500)
+    return () => clearTimeout(autosaveTimerRef.current)
+  }, [JSON.stringify(form)])
+
   if (form !== null) {
     return <AfspraakForm form={form} setForm={setForm} klanten={klanten} werkbonnen={werkbonnen} medewerkers={medewerkers}
-      onOpslaan={opslaan} onVerwijder={verwijder} onAnnuleer={() => setForm(null)} bezig={bezig} />
+      onOpslaan={opslaan} onVerwijder={verwijder} onAnnuleer={() => setForm(null)} bezig={bezig} autosaveStatus={autosaveStatus} />
   }
   if (medView) {
     return <MedewerkersView medewerkers={medewerkers} werkbonnen={werkbonnen} onVervers={laadMedewerkers} onTerug={() => setMedView(false)} />
@@ -725,7 +799,7 @@ export default function PlanningView({ klanten, werkbonnen, onWerkbonNavigeer })
       {viewMode === 'maand' && <MaandView refDatum={refDatum} afspraken={zichtbareAfspraken} onDagKlik={dagKlik} />}
       {viewMode === 'week' && <WeekView refDatum={refDatum} afspraken={zichtbareAfspraken} medewerkers={medewerkers} werkbonnen={werkbonnen} onDagKlik={dagKlik} onAfspraakKlik={afspraakKlik} onBonKlik={onWerkbonNavigeer} />}
       {viewMode === 'dag' && <DagView refDatum={refDatum} afspraken={zichtbareAfspraken} medewerkers={medewerkers} werkbonnen={werkbonnen} onAfspraakKlik={afspraakKlik} onBonKlik={onWerkbonNavigeer} />}
-      <button className="fab fab-boven-nav" onClick={() => setForm(leegForm())}>+</button>
+      <button className="fab fab-boven-nav" onClick={() => { oorspronkelijkeMedewerkersRef.current = []; formIdentiteitRef.current = null; setForm(leegForm()) }}>+</button>
     </div>
   )
 }

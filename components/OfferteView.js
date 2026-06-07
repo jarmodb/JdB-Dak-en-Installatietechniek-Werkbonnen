@@ -705,13 +705,13 @@ function OfferteFormulier({ offerte, offertes, klanten, producten, sjablonen, in
     <div className="view-content form-content with-bottom-nav">
       <div className="top-acties">
         <button className="form-terug" onClick={onAnnuleer}>← Terug</button>
-        {autosaveStatus && (
-          <span style={{ fontSize: 12, color: autosaveStatus === 'opslaan' ? '#C9A227' : '#52c41a', alignSelf: 'center', flex: 1, textAlign: 'center' }}>
-            {autosaveStatus === 'opslaan' ? '⏳ Automatisch opslaan...' : '✓ Concept opgeslagen'}
-          </span>
-        )}
         <button className="btn btn-primair" onClick={opslaan} disabled={bezig}>{bezig ? 'Opslaan...' : '✓ Opslaan'}</button>
       </div>
+      {autosaveStatus && (
+        <div className={`autosave-toast ${autosaveStatus}`}>
+          {autosaveStatus === 'opslaan' ? '⏳ Automatisch opslaan...' : '✓ Concept opgeslagen'}
+        </div>
+      )}
 
       {/* Naam offerte */}
       <div className="sectie">

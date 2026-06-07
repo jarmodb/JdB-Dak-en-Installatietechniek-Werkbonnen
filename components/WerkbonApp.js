@@ -883,12 +883,12 @@ export default function WerkbonApp() {
         <div className="view-content form-content">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
             <button className="form-terug" style={{ margin: 0 }} onClick={toonOverzicht}>← Terug</button>
-            {autosaveStatus && (
-              <span style={{ fontSize: 12, color: autosaveStatus === 'opslaan' ? '#C9A227' : '#52c41a', flex: 1, textAlign: 'center' }}>
-                {autosaveStatus === 'opslaan' ? '⏳ Automatisch opslaan...' : '✓ Concept opgeslagen'}
-              </span>
-            )}
           </div>
+          {autosaveStatus && (
+            <div className={`autosave-toast ${autosaveStatus}`}>
+              {autosaveStatus === 'opslaan' ? '⏳ Automatisch opslaan...' : '✓ Concept opgeslagen'}
+            </div>
+          )}
 
           <div className="sectie">
             <div className="sectie-titel">Werkbon info</div>

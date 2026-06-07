@@ -757,6 +757,27 @@ tr:last-child td { border-bottom: none; }
 }
 .top-acties .form-terug { margin-bottom: 0; }
 
+/* === AUTOSAVE-INDICATOR (zwevend, blijft zichtbaar tijdens scrollen door lange formulieren) === */
+.autosave-toast {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 2px 12px rgba(0,0,0,.15);
+  z-index: 200;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.autosave-toast.opslaan { background: #fffbe6; border: 1px solid #ffe58f; color: #C9A227; }
+.autosave-toast.opgeslagen { background: #f6ffed; border: 1px solid #b7eb8f; color: #389E0D; }
+
 /* === AUTOCOMPLETE === */
 .autocomplete { position: relative; }
 .autocomplete-dropdown {
@@ -817,6 +838,7 @@ tr:last-child td { border-bottom: none; }
   .modal-overlay,
   .no-print,
   .top-acties,
+  .autosave-toast,
   .bon-medewerkers-blok,
   .pdf-onedrive-status,
   .bottom-nav { display: none !important; }
