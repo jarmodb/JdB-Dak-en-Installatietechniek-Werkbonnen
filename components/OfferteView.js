@@ -132,7 +132,12 @@ function OffertePrint({ offerte, instellingen = {} }) {
   const t = berekenTotalen(offerte)
   const tekst = verwerkVariabelen(offerte.tekst, offerte)
   const bedrijfsnaam = instellingen.bedrijfsnaam || 'JdB Dak- en Installatietechniek'
-  const logoUrl = instellingen.logo_url || '/logo.png'
+  const logoUrl = instellingen.offerte_logo_url || instellingen.logo_url || '/logo.png'
+  const bedrijfsgegevens = [
+    instellingen.kvk_nummer ? `KVK: ${instellingen.kvk_nummer}` : null,
+    instellingen.btw_nummer ? `BTW: ${instellingen.btw_nummer}` : null,
+    instellingen.iban ? `IBAN: ${instellingen.iban}` : null,
+  ].filter(Boolean)
   return (
     <div className="offerte-print">
       <div className="offerte-print-header">
@@ -145,6 +150,7 @@ function OffertePrint({ offerte, instellingen = {} }) {
               {instellingen.telefoon && <><br />{instellingen.telefoon}</>}
               {instellingen.email && <> · {instellingen.email}</>}
               {instellingen.website && <><br />{instellingen.website}</>}
+              {bedrijfsgegevens.length > 0 && <><br />{bedrijfsgegevens.join('  ·  ')}</>}
             </div>
           </div>
         </div>
@@ -230,13 +236,6 @@ function OffertePrint({ offerte, instellingen = {} }) {
 
       <div className="offerte-print-footer">
         <p>Wij vertrouwen erop u hiermee een passend aanbod te hebben gedaan. Voor vragen kunt u contact met ons opnemen.</p>
-        {(instellingen.kvk_nummer || instellingen.btw_nummer || instellingen.iban) && (
-          <p style={{ fontSize: 11, color: '#888', marginTop: 4 }}>
-            {instellingen.kvk_nummer && `KVK: ${instellingen.kvk_nummer}`}
-            {instellingen.btw_nummer && ` · BTW: ${instellingen.btw_nummer}`}
-            {instellingen.iban && ` · IBAN: ${instellingen.iban}`}
-          </p>
-        )}
         <div className="offerte-print-akkoord">
           <div>
             <div className="offerte-akkoord-lijn" />
@@ -929,11 +928,6 @@ export default function OfferteView({ klanten, producten, onWerkbonAangemaakt, m
               <button className="btn btn-primair" onClick={() => setWerkbonModal(true)}>📋 → Werkbon</button>
             </div>
           </div>
-
-          {/* Naam */}
-          {huidig.naam && (
-            <div style={{ fontSize: 18, fontWeight: 700, margin: '8px 0 2px', color: '#1a1a1a' }}>{huidig.naam}</div>
-          )}
 
           {/* Status */}
           <div className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 0', flexWrap: 'wrap' }}>

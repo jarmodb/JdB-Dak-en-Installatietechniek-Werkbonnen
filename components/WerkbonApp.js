@@ -1213,8 +1213,10 @@ function InstellingenView({ instellingen, onChange }) {
   const [bezig, setBezig] = useState(false)
   const [opgeslagen, setOpgeslagen] = useState(false)
   const [logoBezig, setLogoBezig] = useState(false)
+  const [offerteLogoBezig, setOfferteLogoBezig] = useState(false)
   const [avBezig, setAvBezig] = useState(false)
   const logoInputRef = useRef(null)
+  const offerteLogoInputRef = useRef(null)
   const avInputRef = useRef(null)
 
   useEffect(() => { setForm({ ...instellingen }) }, [JSON.stringify(instellingen)])
@@ -1244,6 +1246,22 @@ function InstellingenView({ instellingen, onChange }) {
     } catch (err) { alert('Logo upload mislukt: ' + err.message) }
     setLogoBezig(false)
     if (logoInputRef.current) logoInputRef.current.value = ''
+  }
+
+  async function handleOfferteLogo(e) {
+    const bestand = e.target.files?.[0]
+    if (!bestand) return
+    setOfferteLogoBezig(true)
+    try {
+      const ext = bestand.name.slice(bestand.name.lastIndexOf('.')) || '.png'
+      const pad = `instellingen/offerte-logo${ext}`
+      const res = await fetch('/api/foto-upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pad }) })
+      const { signedUrl, publicUrl } = await res.json()
+      await fetch(signedUrl, { method: 'PUT', headers: { 'Content-Type': bestand.type || 'image/png', 'Cache-Control': 'no-cache' }, body: bestand })
+      sv('offerte_logo_url', publicUrl + '?v=' + Date.now())
+    } catch (err) { alert('Logo upload mislukt: ' + err.message) }
+    setOfferteLogoBezig(false)
+    if (offerteLogoInputRef.current) offerteLogoInputRef.current.value = ''
   }
 
   async function handleAv(e) {
@@ -1294,6 +1312,23 @@ function InstellingenView({ instellingen, onChange }) {
               {logoBezig ? '⏳ Uploaden...' : '📷 Logo uploaden'}
             </button>
             {form.logo_url && <button className="btn btn-licht" onClick={() => sv('logo_url', '')}>Verwijder</button>}
+          </div>
+        </div>
+      </div>
+      <div className="sectie">
+        <div className="sectie-titel">Logo voor offertes</div>
+        <p style={{ fontSize: 13, color: '#888', marginBottom: 10 }}>
+          Wordt gebruikt bovenaan offertes (PDF en voorbeeld). Kies hier een variant met <strong>donkere/zwarte letters</strong>,
+          omdat de offerte een witte achtergrond heeft — het normale logo hierboven is bedoeld voor een donkere achtergrond.
+        </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 }}>
+          <img src={form.offerte_logo_url || form.logo_url || '/logo.png'} alt="Offerte logo" style={{ height: 64, objectFit: 'contain', background: '#fff', border: '1px solid #e8e8e8', padding: 8, borderRadius: 8 }} onError={e => e.target.style.display = 'none'} />
+          <div>
+            <input ref={offerteLogoInputRef} type="file" accept="image/*" onChange={handleOfferteLogo} style={{ display: 'none' }} />
+            <button className="btn btn-licht" onClick={() => offerteLogoInputRef.current?.click()} disabled={offerteLogoBezig} style={{ marginRight: 8 }}>
+              {offerteLogoBezig ? '⏳ Uploaden...' : '📷 Logo uploaden'}
+            </button>
+            {form.offerte_logo_url && <button className="btn btn-licht" onClick={() => sv('offerte_logo_url', '')}>Verwijder</button>}
           </div>
         </div>
       </div>
