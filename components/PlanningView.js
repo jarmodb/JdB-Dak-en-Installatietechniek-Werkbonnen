@@ -667,6 +667,42 @@ export default function PlanningView({ klanten, werkbonnen, onWerkbonNavigeer })
     }
   }
 
+  // Koppelt de medewerkers van een afspraak ook aan de gekoppelde werkbon, zodat de bon
+  // meteen tussen hún eigen werkbonnen verschijnt (en niet alleen zichtbaar is via de afspraak)
+  async function koppelWerkbonAanMedewerkers(werkbonId, afspraakMedewerkers) {
+    if (!werkbonId || !afspraakMedewerkers?.length) return
+    try {
+      const { data: bon } = await supabase.from('werkbonnen')
+        .select('id, nummer, klant_naam, klant_adres, omschrijving, medewerkers').eq('id', werkbonId).single()
+      if (!bon) return
+      const huidig = bon.medewerkers || []
+      const toegevoegd = afspraakMedewerkers.filter(id => !huidig.includes(id))
+      if (toegevoegd.length === 0) return
+      const nieuw = [...huidig, ...toegevoegd]
+      await supabase.from('werkbonnen').update({ medewerkers: nieuw }).eq('id', werkbonId)
+
+      for (const medId of toegevoegd) {
+        const med = medewerkers.find(m => m.id === medId)
+        if (med?.email && (med.meldingen ?? true)) {
+          fetch('/api/stuur-melding', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: med.email,
+              naam: med.naam,
+              werkbonNummer: bon.nummer,
+              klantNaam: bon.klant_naam,
+              klantAdres: bon.klant_adres,
+              omschrijving: bon.omschrijving,
+              token: med.token,
+              origin: window.location.origin,
+            }),
+          }).catch(err => console.warn('Werkbon-koppeling melding mislukt:', err))
+        }
+      }
+    } catch (err) { console.warn('Koppelen werkbon aan medewerkers mislukt:', err) }
+  }
+
   async function opslaan() {
     if (!form.titel?.trim()) { alert('Titel is verplicht'); return }
     setBezig(true)
@@ -708,6 +744,8 @@ export default function PlanningView({ klanten, werkbonnen, onWerkbonNavigeer })
         }).catch(err => console.warn('Planning melding mislukt:', err))
       }
     }
+
+    if (saveData.werkbon_id) await koppelWerkbonAanMedewerkers(saveData.werkbon_id, nieuweMeds)
 
     oorspronkelijkeMedewerkersRef.current = nieuweMeds
     if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
@@ -774,6 +812,8 @@ export default function PlanningView({ klanten, werkbonnen, onWerkbonNavigeer })
               }).catch(err => console.warn('Planning melding mislukt:', err))
             }
           }
+          if (saveData.werkbon_id) await koppelWerkbonAanMedewerkers(saveData.werkbon_id, nieuweMeds)
+
           oorspronkelijkeMedewerkersRef.current = nieuweMeds
           dirtyRef.current = false
           setAutosaveStatus('opgeslagen')
