@@ -87,6 +87,13 @@ const EENHEDEN = ['stuk', 'm²', 'meter', 'liter', 'kg', 'uur', 'set', 'rol', 'd
 // ── Helpers ─────────────────────────────────────────────────────────
 function euro(n) { return '€ ' + Number(n || 0).toFixed(2).replace('.', ',') }
 function datumNL(iso) { if (!iso) return ''; const [y, m, d] = iso.split('-'); return `${d}-${m}-${y}` }
+const STATUS_INFO = {
+  open: { label: 'Open', klasse: 'status-open' },
+  in_uitvoering: { label: 'In uitvoering', klasse: 'status-in-uitvoering' },
+  afgerond: { label: 'Afgerond', klasse: 'status-afgerond' },
+  gefactureerd: { label: 'Gefactureerd', klasse: 'status-gefactureerd' },
+}
+function statusInfo(status) { return STATUS_INFO[status] || STATUS_INFO.open }
 function vandaag() { return new Date().toISOString().split('T')[0] }
 
 function genNummer(werkbonnen, prefix = 'WB') {
@@ -746,11 +753,10 @@ export default function WerkbonApp() {
     }
   }
 
-  async function wisselStatus() {
-    if (!huidigeBon) return
-    const nieuw = !huidigeBon.gefactureerd
-    await supabase.from('werkbonnen').update({ gefactureerd: nieuw }).eq('id', huidigeBon.id)
-    const bijgewerkt = { ...huidigeBon, gefactureerd: nieuw }
+  async function wijzigStatus(nieuweStatus) {
+    if (!huidigeBon || nieuweStatus === (huidigeBon.status || 'open')) return
+    await supabase.from('werkbonnen').update({ status: nieuweStatus }).eq('id', huidigeBon.id)
+    const bijgewerkt = { ...huidigeBon, status: nieuweStatus }
     setHuidigeBon(bijgewerkt); setWerkbonnen(w => w.map(b => b.id === huidigeBon.id ? bijgewerkt : b))
   }
 
@@ -837,7 +843,7 @@ export default function WerkbonApp() {
                       <div className={bon.naam ? 'bon-meta' : 'bon-klant'}>{bon.klant_naam || '(geen naam)'}</div>
                       <div className="bon-meta">
                         {datumNL(bon.datum)} &bull; {bon.type || '–'} &bull; {' '}
-                        <span className={`status-badge ${bon.gefactureerd ? 'status-gefactureerd' : 'status-open'}`}>{bon.gefactureerd ? 'Gefactureerd' : 'Open'}</span>
+                        <span className={`status-badge ${statusInfo(bon.status).klasse}`}>{statusInfo(bon.status).label}</span>
                         {bon.fotos?.length > 0 && <span className="foto-badge">📷 {bon.fotos.length}</span>}
                       </div>
                     </div>
@@ -1119,7 +1125,17 @@ export default function WerkbonApp() {
           <div className="detail-acties">
             <button className="btn btn-primair" onClick={bewerkWerkbon}>✏️ Bewerken</button>
             <button className="btn btn-sec" onClick={() => window.print()}>🖨️ PDF / Afdrukken</button>
-            <button className={`btn ${huidigeBon.gefactureerd ? 'btn-groen-licht' : 'btn-licht'}`} onClick={wisselStatus}>{huidigeBon.gefactureerd ? '✓ Gefactureerd' : 'Markeer gefactureerd'}</button>
+            <select
+              className={`status-select ${statusInfo(huidigeBon.status).klasse}`}
+              value={huidigeBon.status || 'open'}
+              onChange={e => wijzigStatus(e.target.value)}
+              title="Status van de werkbon"
+            >
+              <option value="open">Open</option>
+              <option value="in_uitvoering">In uitvoering</option>
+              <option value="afgerond">Afgerond</option>
+              <option value="gefactureerd">Gefactureerd</option>
+            </select>
             <button className="btn btn-gevaar-licht" onClick={() => setVerwijderModal(true)}>🗑️</button>
           </div>
           {msIngelogd && pdfStatus && (
@@ -1465,7 +1481,7 @@ function BonAfdruk({ bon, instellingen = {} }) {
           <div className="bon-kop-nr">
             <div className="nr">{bon.nummer}</div>
             <div className="datum">{datumNL(bon.datum)}</div>
-            <div><span className={`status-badge ${bon.gefactureerd ? 'status-gefactureerd' : 'status-open'}`}>{bon.gefactureerd ? 'Gefactureerd' : 'Open'}</span></div>
+            <div><span className={`status-badge ${statusInfo(bon.status).klasse}`}>{statusInfo(bon.status).label}</span></div>
           </div>
         </div>
       </div>

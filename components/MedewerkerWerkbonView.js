@@ -4,6 +4,13 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 
 function datumNL(iso) { if (!iso) return ''; const [y, m, d] = iso.split('-'); return `${d}-${m}-${y}` }
+const STATUS_INFO = {
+  open: { label: 'Open', klasse: 'status-open' },
+  in_uitvoering: { label: 'In uitvoering', klasse: 'status-in-uitvoering' },
+  afgerond: { label: 'Afgerond', klasse: 'status-afgerond' },
+  gefactureerd: { label: 'Gefactureerd', klasse: 'status-gefactureerd' },
+}
+function statusInfo(status) { return STATUS_INFO[status] || STATUS_INFO.open }
 function vandaag() { return new Date().toISOString().split('T')[0] }
 
 async function genNummer() {
@@ -309,8 +316,8 @@ export default function MedewerkerWerkbonView({ medewerker, view, huidigeBon, on
                     <div className="bon-klant">{bon.klant_naam || '(geen naam)'}</div>
                     <div className="bon-meta">
                       {datumNL(bon.datum)} &bull; {bon.omschrijving || '–'}
-                      <span className={`status-badge ${bon.gefactureerd ? 'status-gefactureerd' : 'status-open'}`} style={{ marginLeft: 6 }}>
-                        {bon.gefactureerd ? 'Gefactureerd' : 'Open'}
+                      <span className={`status-badge ${statusInfo(bon.status).klasse}`} style={{ marginLeft: 6 }}>
+                        {statusInfo(bon.status).label}
                       </span>
                     </div>
                   </div>

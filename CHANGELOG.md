@@ -4,6 +4,16 @@ Alle wijzigingen per versie worden hier bijgehouden.
 
 ---
 
+## v1.5 – 8 juni 2026
+
+### Nieuw
+- **Statusfases voor werkbonnen**: in plaats van alleen 'Open'/'Gefactureerd' heeft een werkbon nu vier fases: **Open → In uitvoering → Afgerond → Gefactureerd**. De status is te wijzigen via een dropdown op de detailpagina en wordt overal als gekleurd label getoond (overzicht, detail, planning, medewerkerlink).
+
+### Verbeterd
+- Bestaande werkbonnen worden automatisch gemigreerd: bonnen die al als 'gefactureerd' waren gemarkeerd krijgen die status, de rest start als 'Open'.
+
+---
+
 ## v1.4 – 6 juni 2026
 
 ### Nieuw

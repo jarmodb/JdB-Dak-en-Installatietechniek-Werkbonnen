@@ -104,7 +104,22 @@ header span { font-size: 13px; color: var(--goud); }
   font-weight: 700;
 }
 .status-open { background: #fef3c7; color: #92400e; }
+.status-in-uitvoering { background: #dbeafe; color: #1e40af; }
+.status-afgerond { background: #ede9fe; color: #5b21b6; }
 .status-gefactureerd { background: #d1fae5; color: #065f46; }
+
+.status-select {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity .15s, transform .1s;
+}
+.status-select:active { transform: scale(.97); }
 
 /* === KNOPPEN === */
 .btn {

@@ -9,6 +9,14 @@ const MK = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','d
 const DK = ['Ma','Di','Wo','Do','Vr','Za','Zo']
 const DL = ['Maandag','Dinsdag','Woensdag','Donderdag','Vrijdag','Zaterdag','Zondag']
 const KLEUREN_OPTIES = ['#C9A227','#E8A020','#D4380D','#096DD9','#389E0D','#722ED1','#08979C']
+const STATUS_INFO = {
+  open: { label: 'Open', kort: 'Open' },
+  in_uitvoering: { label: 'In uitvoering', kort: 'In uitvoering' },
+  afgerond: { label: 'Afgerond', kort: 'Afgerond' },
+  gefactureerd: { label: 'Gefactureerd', kort: '✓ Gefactureerd' },
+}
+function statusInfo(status) { return STATUS_INFO[status] || STATUS_INFO.open }
+const STATUS_KLEUREN = { open: '#aaa', in_uitvoering: '#1e40af', afgerond: '#5b21b6', gefactureerd: '#389E0D' }
 
 // ── Datum helpers ────────────────────────────────────────────────────
 function ds(d) {
@@ -454,8 +462,8 @@ export function MedewerkersView({ medewerkers, werkbonnen = [], onVervers, onTer
                               <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, background: '#fafafa', border: '1px solid #f0f0f0', borderRadius: 6, padding: '5px 10px' }}>
                                 <span style={{ fontWeight: 600, color: '#C9A227', whiteSpace: 'nowrap' }}>{b.nummer}</span>
                                 <span style={{ color: '#555', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.klant_naam || '—'}</span>
-                                <span style={{ color: b.gefactureerd ? '#389E0D' : '#aaa', whiteSpace: 'nowrap', fontSize: 11 }}>
-                                  {b.gefactureerd ? '✓ Gefactureerd' : 'Open'}
+                                <span style={{ color: STATUS_KLEUREN[b.status] || STATUS_KLEUREN.open, whiteSpace: 'nowrap', fontSize: 11 }}>
+                                  {statusInfo(b.status).kort}
                                 </span>
                               </div>
                             ))}
