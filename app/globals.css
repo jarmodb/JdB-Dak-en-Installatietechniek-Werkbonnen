@@ -56,6 +56,32 @@ header span { font-size: 13px; color: var(--goud); }
 }
 .overzicht-header h2 { font-size: 16px; font-weight: 600; color: var(--grijs); }
 
+.status-filter-rij {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.status-filter-chip {
+  border: 1px solid transparent;
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--grijs-licht);
+  color: var(--grijs);
+  opacity: .65;
+  transition: opacity .15s, transform .1s;
+}
+.status-filter-chip:active { transform: scale(.96); }
+.status-filter-chip.actief { opacity: 1; border-color: currentColor; }
+.status-filter-chip.alle { background: var(--grijs-licht); color: var(--tekst); }
+.status-filter-chip.status-open { background: #fef3c7; color: #92400e; }
+.status-filter-chip.status-in-uitvoering { background: #dbeafe; color: #1e40af; }
+.status-filter-chip.status-afgerond { background: #ede9fe; color: #5b21b6; }
+.status-filter-chip.status-gefactureerd { background: #d1fae5; color: #065f46; }
+
 .bon-lijst { display: flex; flex-direction: column; gap: 10px; }
 
 .bon-kaart {

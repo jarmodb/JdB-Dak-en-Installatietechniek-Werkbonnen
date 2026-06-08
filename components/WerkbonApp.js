@@ -326,6 +326,7 @@ export default function WerkbonApp() {
   const [huidigeBon, setHuidigeBon] = useState(null)
   const [bewerkModus, setBewerkModus] = useState(false)
   const [laden, setLaden] = useState(true)
+  const [statusFilter, setStatusFilter] = useState('alle')
   const [formulier, setFormulier] = useState(leegFormulier())
   const [werkdagen, setWerkdagen] = useState([])
   const [geselecteerdeTypes, setGeselecteerdeTypes] = useState([])
@@ -800,6 +801,7 @@ export default function WerkbonApp() {
     }
   }
 
+  const gefilterdeWerkbonnen = statusFilter === 'alle' ? werkbonnen : werkbonnen.filter(b => (b.status || 'open') === statusFilter)
   const totalen = bereken(werkdagen, formulier.uurtarief, materialen)
   const toonNav = ['overzicht', 'klanten', 'producten', 'planning', 'todos', 'offertes', 'instellingen'].includes(view)
   const headerTitel = view === 'overzicht' ? 'JdB Werkbonnen' : view === 'klanten' ? 'Klanten' : view === 'producten' ? 'Producten' : view === 'planning' ? 'Planning' : view === 'todos' ? 'Taken' : view === 'medewerkers' ? 'Medewerkers' : view === 'offertes' ? 'Offertes' : view === 'instellingen' ? 'Instellingen' : view === 'formulier' ? (bewerkModus ? 'Bewerken' : 'Nieuwe werkbon') : huidigeBon?.nummer || ''
@@ -830,12 +832,24 @@ export default function WerkbonApp() {
       {/* ── OVERZICHT ── */}
       {view === 'overzicht' && (
         <div className="view-content with-bottom-nav">
-          <div className="overzicht-header"><h2>{werkbonnen.length} {werkbonnen.length === 1 ? 'werkbon' : 'werkbonnen'}</h2></div>
+          <div className="overzicht-header"><h2>{gefilterdeWerkbonnen.length} {gefilterdeWerkbonnen.length === 1 ? 'werkbon' : 'werkbonnen'}{statusFilter !== 'alle' ? ` · ${statusInfo(statusFilter).label}` : ''}</h2></div>
+          <div className="status-filter-rij">
+            {['alle', 'open', 'in_uitvoering', 'afgerond', 'gefactureerd'].map(s => (
+              <button
+                key={s}
+                className={`status-filter-chip ${s === 'alle' ? 'alle' : statusInfo(s).klasse} ${statusFilter === s ? 'actief' : ''}`}
+                onClick={() => setStatusFilter(s)}
+              >
+                {s === 'alle' ? 'Alle' : statusInfo(s).label}
+              </button>
+            ))}
+          </div>
           {laden ? <div className="laden">Laden...</div>
             : werkbonnen.length === 0 ? <div className="leeg"><p>Nog geen werkbonnen.<br />Tik op <strong>+</strong> om te beginnen.</p></div>
+            : gefilterdeWerkbonnen.length === 0 ? <div className="leeg"><p>Geen werkbonnen met deze status.</p></div>
             : (
               <div className="bon-lijst">
-                {werkbonnen.map(bon => (
+                {gefilterdeWerkbonnen.map(bon => (
                   <div key={bon.id} className="bon-kaart" onClick={() => toonDetail(bon)}>
                     <div className="bon-nummer">{bon.nummer}</div>
                     <div className="bon-info">

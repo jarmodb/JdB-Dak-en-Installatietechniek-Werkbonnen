@@ -8,6 +8,7 @@ Alle wijzigingen per versie worden hier bijgehouden.
 
 ### Nieuw
 - **Statusfases voor werkbonnen**: in plaats van alleen 'Open'/'Gefactureerd' heeft een werkbon nu vier fases: **Open → In uitvoering → Afgerond → Gefactureerd**. De status is te wijzigen via een dropdown op de detailpagina en wordt overal als gekleurd label getoond (overzicht, detail, planning, medewerkerlink).
+- **Filter op status in overzicht**: bovenaan de werkbonnenlijst kun je nu filteren op 'Alle', 'Open', 'In uitvoering', 'Afgerond' of 'Gefactureerd' met gekleurde filterknoppen — handig om snel te zien welke klussen nog aandacht nodig hebben.
 
 ### Verbeterd
 - Bestaande werkbonnen worden automatisch gemigreerd: bonnen die al als 'gefactureerd' waren gemarkeerd krijgen die status, de rest start als 'Open'.
