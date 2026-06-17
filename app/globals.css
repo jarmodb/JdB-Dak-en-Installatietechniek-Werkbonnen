@@ -771,11 +771,13 @@ tr:last-child td { border-bottom: none; }
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
   z-index: 150;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 .bottom-nav::-webkit-scrollbar { display: none; }
 .bottom-nav button {
   flex: 0 0 auto;
   min-width: 64px;
+  min-height: 54px;
   background: none;
   border: none;
   color: #888;
@@ -784,6 +786,7 @@ tr:last-child td { border-bottom: none; }
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 3px;
   transition: color .15s;
 }
@@ -791,8 +794,8 @@ tr:last-child td { border-bottom: none; }
 .bottom-nav button:hover { color: #bbb; }
 .nav-icon { font-size: 20px; line-height: 1; }
 .nav-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; }
-.with-bottom-nav { padding-bottom: 80px !important; }
-.fab-boven-nav { bottom: 84px !important; }
+.with-bottom-nav { padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important; }
+.fab-boven-nav { bottom: calc(84px + env(safe-area-inset-bottom, 0px)) !important; }
 
 /* === TOP ACTIES (klanten/producten form) === */
 .top-acties {
@@ -1499,7 +1502,7 @@ tr:last-child td { border-bottom: none; }
 .uren-stat-kaart {
   flex: 1;
   background: var(--wit);
-  border: 1px solid var(--rand);
+  border: 1px solid var(--grens);
   border-radius: 10px;
   padding: 12px 8px;
   text-align: center;
@@ -1523,7 +1526,7 @@ tr:last-child td { border-bottom: none; }
 /* Timer FAB */
 .timer-fab {
   position: fixed;
-  bottom: 84px;
+  bottom: calc(84px + env(safe-area-inset-bottom, 0px));
   left: 16px;
   z-index: 140;
   display: flex;
@@ -1596,7 +1599,7 @@ tr:last-child td { border-bottom: none; }
 .uren-groep {
   border-radius: 10px;
   overflow: hidden;
-  border: 1px solid var(--rand);
+  border: 1px solid var(--grens);
   background: var(--wit);
   box-shadow: var(--schaduw);
 }
@@ -1614,13 +1617,13 @@ tr:last-child td { border-bottom: none; }
 .uren-groep-sub { font-size: 11px; color: var(--grijs); margin-top: 1px; }
 .uren-groep-totaal { font-weight: 700; font-size: 15px; color: var(--goud); white-space: nowrap; }
 .uren-groep-pijl { font-size: 10px; color: var(--grijs); }
-.uren-groep-entries { border-top: 1px solid var(--rand); }
+.uren-groep-entries { border-top: 1px solid var(--grens); }
 .uren-entry {
   display: flex;
   align-items: center;
   padding: 9px 14px;
   gap: 8px;
-  border-bottom: 1px solid var(--rand);
+  border-bottom: 1px solid var(--grens);
   transition: background .12s;
 }
 .uren-entry:last-child { border-bottom: none; }

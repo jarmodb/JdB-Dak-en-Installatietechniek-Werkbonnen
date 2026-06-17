@@ -1343,7 +1343,7 @@ export default function WerkbonApp() {
             <span className="nav-icon">📄</span><span className="nav-label">Offertes</span>
           </button>
           <button className={view === 'instellingen' ? 'actief' : ''} onClick={() => navigeer('instellingen')}>
-            <span className="nav-icon">⚙️</span><span className="nav-label">Instellingen</span>
+            <span className="nav-icon">⚙</span><span className="nav-label">Instellingen</span>
           </button>
         </nav>
       )}
