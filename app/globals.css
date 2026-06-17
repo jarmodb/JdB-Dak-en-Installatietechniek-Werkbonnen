@@ -1485,6 +1485,36 @@ tr:last-child td { border-bottom: none; }
 .offerte-akkoord-lijn { border-bottom: 1px solid #333; width: 180px; margin-bottom: 4px; height: 32px; }
 .offerte-akkoord-label { font-size: 11px; color: #888; }
 
+/* Uren stats */
+.uren-stats {
+  display: flex;
+  gap: 10px;
+  padding: 12px 16px 4px;
+}
+.uren-stat-kaart {
+  flex: 1;
+  background: var(--wit);
+  border: 1px solid var(--rand);
+  border-radius: 10px;
+  padding: 12px 8px;
+  text-align: center;
+  box-shadow: var(--schaduw);
+}
+.uren-stat-waarde {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--goud);
+  line-height: 1.1;
+}
+.uren-stat-label {
+  font-size: 11px;
+  color: var(--grijs);
+  margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  font-weight: 600;
+}
+
 /* Print mode */
 @media print {
   header, .bottom-nav, .top-acties, .no-print, nav { display: none !important; }

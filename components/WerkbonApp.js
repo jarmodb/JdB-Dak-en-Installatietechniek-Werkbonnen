@@ -7,6 +7,7 @@ import { msLogin, msLogout, msGetAccount, uploadFotoNaarOneDrive, uploadPdfNaarO
 import PlanningView, { MedewerkersView } from '@/components/PlanningView'
 import TodoView from '@/components/TodoView'
 import OfferteView from '@/components/OfferteView'
+import UrenView from '@/components/UrenView'
 
 const CHANGELOG = [
   {
@@ -804,7 +805,7 @@ export default function WerkbonApp() {
   const gefilterdeWerkbonnen = statusFilter === 'alle' ? werkbonnen : werkbonnen.filter(b => (b.status || 'open') === statusFilter)
   const totalen = bereken(werkdagen, formulier.uurtarief, materialen)
   const toonNav = ['overzicht', 'klanten', 'producten', 'planning', 'todos', 'offertes', 'instellingen'].includes(view)
-  const headerTitel = view === 'overzicht' ? 'JdB Werkbonnen' : view === 'klanten' ? 'Klanten' : view === 'producten' ? 'Producten' : view === 'planning' ? 'Planning' : view === 'todos' ? 'Taken' : view === 'medewerkers' ? 'Medewerkers' : view === 'offertes' ? 'Offertes' : view === 'instellingen' ? 'Instellingen' : view === 'formulier' ? (bewerkModus ? 'Bewerken' : 'Nieuwe werkbon') : huidigeBon?.nummer || ''
+  const headerTitel = view === 'overzicht' ? 'JdB Werkbonnen' : view === 'klanten' ? 'Klanten' : view === 'producten' ? 'Producten' : view === 'planning' ? 'Planning' : view === 'todos' ? 'Taken' : view === 'medewerkers' ? 'Medewerkers' : view === 'offertes' ? 'Offertes' : view === 'instellingen' ? 'Instellingen' : view === 'uren' ? 'Uren' : view === 'formulier' ? (bewerkModus ? 'Bewerken' : 'Nieuwe werkbon') : huidigeBon?.nummer || ''
 
   return (
     <>
@@ -887,6 +888,15 @@ export default function WerkbonApp() {
 
       {/* ── TODOS ── */}
       {view === 'todos' && <TodoView />}
+
+      {/* ── UREN ── */}
+      {view === 'uren' && (
+        <UrenView
+          werkbonnen={werkbonnen}
+          medewerkers={medewerkers}
+          onWerkbonNavigeer={bon => bon && toonDetail(bon)}
+        />
+      )}
 
       {/* ── MEDEWERKERS ── */}
       {view === 'medewerkers' && (
@@ -1245,6 +1255,9 @@ export default function WerkbonApp() {
           </button>
           <button className={view === 'todos' ? 'actief' : ''} onClick={() => navigeer('todos')}>
             <span className="nav-icon">✅</span><span className="nav-label">Taken</span>
+          </button>
+          <button className={view === 'uren' ? 'actief' : ''} onClick={() => navigeer('uren')}>
+            <span className="nav-icon">⏱</span><span className="nav-label">Uren</span>
           </button>
           <button className={view === 'offertes' ? 'actief' : ''} onClick={() => navigeer('offertes')}>
             <span className="nav-icon">📄</span><span className="nav-label">Offertes</span>
