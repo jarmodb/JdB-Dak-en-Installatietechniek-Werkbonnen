@@ -767,14 +767,19 @@ tr:last-child td { border-bottom: none; }
   background: var(--zwart);
   border-top: 2px solid var(--goud);
   display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
   z-index: 150;
 }
+.bottom-nav::-webkit-scrollbar { display: none; }
 .bottom-nav button {
-  flex: 1;
+  flex: 0 0 auto;
+  min-width: 64px;
   background: none;
   border: none;
   color: #888;
-  padding: 10px 4px 8px;
+  padding: 10px 6px 8px;
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -1514,6 +1519,76 @@ tr:last-child td { border-bottom: none; }
   letter-spacing: .3px;
   font-weight: 600;
 }
+
+/* Uren groepering */
+.uren-groepering-rij {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px 4px;
+  flex-wrap: wrap;
+}
+.uren-groepering-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--grijs);
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  white-space: nowrap;
+}
+.uren-groepering-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.uren-groepering-chip {
+  background: var(--grijs-licht);
+  border: 1.5px solid transparent;
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tekst);
+  cursor: pointer;
+  transition: all .15s;
+}
+.uren-groepering-chip.actief {
+  background: var(--goud);
+  color: var(--zwart);
+  border-color: var(--goud);
+}
+.uren-groep {
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--rand);
+  background: var(--wit);
+  box-shadow: var(--schaduw);
+}
+.uren-groep-header {
+  display: flex;
+  align-items: center;
+  padding: 12px 14px;
+  cursor: pointer;
+  gap: 8px;
+  background: var(--wit);
+  transition: background .15s;
+}
+.uren-groep-header:hover { background: var(--grijs-licht); }
+.uren-groep-label { font-weight: 700; font-size: 14px; color: var(--tekst); }
+.uren-groep-sub { font-size: 11px; color: var(--grijs); margin-top: 1px; }
+.uren-groep-totaal { font-weight: 700; font-size: 15px; color: var(--goud); white-space: nowrap; }
+.uren-groep-pijl { font-size: 10px; color: var(--grijs); }
+.uren-groep-entries { border-top: 1px solid var(--rand); }
+.uren-entry {
+  display: flex;
+  align-items: center;
+  padding: 9px 14px;
+  gap: 8px;
+  border-bottom: 1px solid var(--rand);
+  transition: background .12s;
+}
+.uren-entry:last-child { border-bottom: none; }
+.uren-entry:hover { background: var(--grijs-licht); }
 
 /* Print mode */
 @media print {
