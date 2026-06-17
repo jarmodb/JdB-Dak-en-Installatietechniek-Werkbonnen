@@ -884,13 +884,13 @@ export default function WerkbonApp() {
 
   const gefilterdeWerkbonnen = statusFilter === 'alle' ? werkbonnen : werkbonnen.filter(b => (b.status || 'open') === statusFilter)
   const totalen = bereken(werkdagen, formulier.uurtarief, materialen)
-  const toonNav = ['overzicht', 'klanten', 'producten', 'planning', 'todos', 'offertes', 'instellingen'].includes(view)
+  const toonNav = !['formulier', 'detail', 'medewerkers'].includes(view)
   const headerTitel = view === 'overzicht' ? 'JdB Werkbonnen' : view === 'klanten' ? 'Klanten' : view === 'producten' ? 'Producten' : view === 'planning' ? 'Planning' : view === 'todos' ? 'Taken' : view === 'medewerkers' ? 'Medewerkers' : view === 'offertes' ? 'Offertes' : view === 'instellingen' ? 'Instellingen' : view === 'uren' ? 'Uren' : view === 'formulier' ? (bewerkModus ? 'Bewerken' : 'Nieuwe werkbon') : huidigeBon?.nummer || ''
 
   return (
     <>
       <header>
-        <div className="header-links">
+        <div className="header-links" style={{ cursor: 'pointer' }} onClick={toonOverzicht}>
           <img src="/logo.png" alt="JdB" className="header-logo" onError={e => e.target.style.display = 'none'} />
           <div>
             <h1>{headerTitel}{syncActief && <span className="sync-dot" />}</h1>
