@@ -17,11 +17,17 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: var(--grijs-licht);
   color: var(--tekst);
   font-size: 15px;
+  touch-action: pan-x pan-y;
 }
 
 /* === HEADER === */
