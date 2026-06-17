@@ -352,6 +352,13 @@ export default function WerkbonApp() {
   const skipAutosaveRef = useRef(false)
   const dirtyRef = useRef(false)
   const WB_DRAFT_KEY = 'werkbon-draft-nieuw'
+  const TIMER_KEY = 'wb-timer'
+
+  // Timer state — geladen vanuit localStorage zodat hij overleeft bij tab-wissels en refreshes
+  const [timerStart, setTimerStart] = useState(() => { try { return JSON.parse(localStorage.getItem('wb-timer'))?.start || null } catch { return null } })
+  const [timerWerkbonId, setTimerWerkbonId] = useState(() => { try { return JSON.parse(localStorage.getItem('wb-timer'))?.werkbon_id || null } catch { return null } })
+  const [timerTick, setTimerTick] = useState(0)
+  const [timerBevestig, setTimerBevestig] = useState(null)
 
   // Auto-save PDF naar OneDrive zodra detail view geladen is na opslaan
   useEffect(() => {
@@ -414,6 +421,13 @@ export default function WerkbonApp() {
     window.addEventListener('popstate', handlePopState)
     return () => { channels.forEach(c => supabase.removeChannel(c)); window.removeEventListener('popstate', handlePopState) }
   }, [])
+
+  // ── Timer tick — elke seconde re-renderen als timer loopt ─────────
+  useEffect(() => {
+    if (!timerStart) return
+    const interval = setInterval(() => setTimerTick(t => t + 1), 1000)
+    return () => clearInterval(interval)
+  }, [timerStart])
 
   // ── Autosave werkbon formulier — 0,5s na laatste wijziging (voelt instant aan,
   // maar voorkomt een aparte database-actie per toetsaanslag) ─────────
@@ -481,6 +495,72 @@ export default function WerkbonApp() {
   }
   function toonOverzicht() { navigeer('overzicht'); setHuidigeBon(null); setBewerkModus(false) }
   function toonDetail(bon) { window.history.pushState({ view: 'detail', bon }, ''); setHuidigeBon(bon); setView('detail') }
+
+  // ── Timer ──────────────────────────────────────────────────────────
+  function timerFormatteer() {
+    if (!timerStart) return '0:00'
+    const elapsed = Date.now() - timerStart
+    const s = Math.floor(elapsed / 1000)
+    const h = Math.floor(s / 3600)
+    const m = Math.floor((s % 3600) / 60)
+    const sec = s % 60
+    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+    return `${m}:${String(sec).padStart(2, '0')}`
+  }
+
+  function timerStarten() {
+    const start = Date.now()
+    const wbId = view === 'detail' && huidigeBon?.id ? huidigeBon.id : null
+    localStorage.setItem(TIMER_KEY, JSON.stringify({ start, werkbon_id: wbId }))
+    setTimerStart(start); setTimerWerkbonId(wbId); setTimerTick(0)
+  }
+
+  function timerStoppen() {
+    const elapsed = timerStart ? Date.now() - timerStart : 0
+    const urenRuw = elapsed / 1000 / 3600
+    const uren = Math.round(urenRuw * 4) / 4 // afgerond op kwartier
+    const wb = timerWerkbonId ? werkbonnen.find(w => w.id === timerWerkbonId) : null
+    setTimerBevestig({
+      datum: vandaag(),
+      uren: uren > 0 ? uren.toString() : '0.25',
+      omschrijving: '',
+      medewerker_id: '',
+      werkbon_id: timerWerkbonId || '',
+      werkbon_nummer: wb?.nummer || '',
+    })
+  }
+
+  function timerAnnuleer() {
+    localStorage.removeItem(TIMER_KEY)
+    setTimerStart(null); setTimerWerkbonId(null); setTimerTick(0); setTimerBevestig(null)
+  }
+
+  async function timerOpslaan() {
+    const wb = timerBevestig.werkbon_id ? werkbonnen.find(w => w.id === timerBevestig.werkbon_id) : null
+    const med = timerBevestig.medewerker_id ? medewerkers.find(m => m.id === timerBevestig.medewerker_id) : null
+    const nieuweWerkdag = {
+      datum: timerBevestig.datum,
+      uren: parseFloat(timerBevestig.uren) || 0,
+      omschrijving: timerBevestig.omschrijving || '',
+      medewerker_id: med?.id || null,
+      medewerker_naam: med?.naam || null,
+      medewerker_kleur: med?.kleur || null,
+    }
+    if (wb) {
+      const bijgewerkt = [...(wb.werkdagen || []), nieuweWerkdag]
+      await supabase.from('werkbonnen').update({ werkdagen: bijgewerkt }).eq('id', wb.id)
+      setWerkbonnen(ws => ws.map(b => b.id === wb.id ? { ...b, werkdagen: bijgewerkt } : b))
+      if (huidigeBon?.id === wb.id) setHuidigeBon(b => ({ ...b, werkdagen: bijgewerkt }))
+    } else {
+      await supabase.from('uren_registraties').insert({
+        datum: nieuweWerkdag.datum, uren: nieuweWerkdag.uren,
+        omschrijving: nieuweWerkdag.omschrijving || null,
+        medewerker_id: nieuweWerkdag.medewerker_id, medewerker_naam: nieuweWerkdag.medewerker_naam,
+        medewerker_kleur: nieuweWerkdag.medewerker_kleur,
+      })
+    }
+    timerAnnuleer()
+  }
 
   function nieuweWerkbon() {
     navigeer('formulier')
@@ -1266,6 +1346,69 @@ export default function WerkbonApp() {
             <span className="nav-icon">⚙️</span><span className="nav-label">Instellingen</span>
           </button>
         </nav>
+      )}
+
+      {/* ── ZWEVENDE TIMER KNOP ── */}
+      {toonNav && (
+        <button
+          className={`timer-fab ${timerStart ? 'actief' : ''}`}
+          onClick={timerStart ? timerStoppen : timerStarten}
+          title={timerStart ? 'Timer stoppen' : 'Timer starten'}
+        >
+          <span className="timer-fab-icon">⏱</span>
+          {timerStart && <span className="timer-fab-tijd">{timerFormatteer()}</span>}
+        </button>
+      )}
+
+      {/* ── TIMER BEVESTIG MODAL ── */}
+      {timerBevestig !== null && (
+        <div className="modal-overlay">
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="changelog-header">
+              <h3>Timer opslaan</h3>
+              <button className="modal-sluit" onClick={timerAnnuleer}>✕</button>
+            </div>
+            <div style={{ padding: '0 16px 8px' }}>
+              <div className="rij-2">
+                <div className="veld">
+                  <label>Datum</label>
+                  <input type="date" value={timerBevestig.datum} onChange={e => setTimerBevestig(b => ({ ...b, datum: e.target.value }))} />
+                </div>
+                <div className="veld">
+                  <label>Uren</label>
+                  <input type="number" value={timerBevestig.uren} onChange={e => setTimerBevestig(b => ({ ...b, uren: e.target.value }))} min="0" step="0.25" />
+                </div>
+              </div>
+              <div className="veld">
+                <label>Omschrijving</label>
+                <input type="text" value={timerBevestig.omschrijving} onChange={e => setTimerBevestig(b => ({ ...b, omschrijving: e.target.value }))} placeholder="Wat is er gedaan?" />
+              </div>
+              <div className="veld">
+                <label>Medewerker</label>
+                <select value={timerBevestig.medewerker_id} onChange={e => setTimerBevestig(b => ({ ...b, medewerker_id: e.target.value }))}>
+                  <option value="">— geen —</option>
+                  {medewerkers.map(m => <option key={m.id} value={m.id}>{m.naam}</option>)}
+                </select>
+              </div>
+              <div className="veld">
+                <label>Werkbon</label>
+                <select value={timerBevestig.werkbon_id} onChange={e => {
+                  const wb = werkbonnen.find(w => w.id === e.target.value)
+                  setTimerBevestig(b => ({ ...b, werkbon_id: e.target.value, werkbon_nummer: wb?.nummer || '' }))
+                }}>
+                  <option value="">— los (opslaan in uren-tab) —</option>
+                  {werkbonnen.map(wb => (
+                    <option key={wb.id} value={wb.id}>{wb.nummer}{wb.klant_naam ? ` · ${wb.klant_naam}` : ''}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="modal-acties">
+              <button className="btn" onClick={timerAnnuleer}>Annuleren</button>
+              <button className="btn btn-primair" onClick={timerOpslaan}>✓ Toevoegen</button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   )

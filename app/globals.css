@@ -1520,6 +1520,42 @@ tr:last-child td { border-bottom: none; }
   font-weight: 600;
 }
 
+/* Timer FAB */
+.timer-fab {
+  position: fixed;
+  bottom: 84px;
+  left: 16px;
+  z-index: 140;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--zwart);
+  color: #888;
+  border: 1.5px solid #444;
+  border-radius: 24px;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,.3);
+  transition: all .2s;
+  min-width: 48px;
+  justify-content: center;
+}
+.timer-fab:hover { border-color: var(--goud); color: var(--goud); }
+.timer-fab.actief {
+  background: #7f1d1d;
+  border-color: #ef4444;
+  color: #fca5a5;
+  animation: timer-puls 2s ease-in-out infinite;
+}
+.timer-fab-icon { font-size: 16px; line-height: 1; }
+.timer-fab-tijd { font-size: 13px; font-weight: 700; letter-spacing: .5px; font-variant-numeric: tabular-nums; }
+@keyframes timer-puls {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,.4); }
+  50% { box-shadow: 0 0 0 8px rgba(239,68,68,0); }
+}
+
 /* Uren groepering */
 .uren-groepering-rij {
   display: flex;
