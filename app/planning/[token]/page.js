@@ -118,6 +118,8 @@ export default function PlanningDeelPage() {
   const [todos, setTodos] = useState([])
   const [werkbonnen, setWerkbonnen] = useState([])
   const [actieveTab, setActieveTab] = useState('planning')
+  const [noodcontacten, setNoodcontacten] = useState([])
+  const [contactenOpen, setContactenOpen] = useState(false)
   // Werkbon navigatie — centraal beheerd zodat er maar één popstate listener is
   const [werkbonView, setWerkbonView] = useState('lijst')   // lijst | detail | formulier
   const [huidigeBon, setHuidigeBon] = useState(null)
@@ -187,14 +189,16 @@ export default function PlanningDeelPage() {
 
   async function laadData(link) {
     document.title = `JdB – ${link.naam}`
-    const [{ data: ap }, { data: td }, { data: wb }] = await Promise.all([
+    const [{ data: ap }, { data: td }, { data: wb }, { data: inst }] = await Promise.all([
       supabase.from('planning').select('*').order('datum').order('tijdstip_van', { nullsFirst: true }),
       supabase.from('todos').select('*').eq('medewerker_id', link.id).eq('gedaan', false).order('aangemaakt'),
       supabase.from('werkbonnen').select('*').order('aangemaakt', { ascending: false }),
+      supabase.from('instellingen').select('noodcontacten').eq('id', 'singleton').single(),
     ])
     setAfspraken(ap || [])
     setTodos(td || [])
     setWerkbonnen(wb || [])
+    setNoodcontacten(inst?.noodcontacten || [])
 
     // Real-time todos
     supabase.channel('todo-ro-sync')
@@ -252,8 +256,36 @@ export default function PlanningDeelPage() {
               {todos.length}
             </span>
           )}
+          {noodcontacten.length > 0 && (
+            <button onClick={() => setContactenOpen(true)} style={{ background: 'none', border: '1px solid rgba(255,255,255,.3)', borderRadius: 8, color: 'white', padding: '5px 10px', fontSize: 18, cursor: 'pointer', lineHeight: 1 }} title="Belangrijke telefoonnummers">
+              📞
+            </button>
+          )}
         </div>
       </header>
+
+      {contactenOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', zIndex: 300, display: 'flex', alignItems: 'flex-end' }} onClick={() => setContactenOpen(false)}>
+          <div style={{ background: 'white', borderRadius: '16px 16px 0 0', padding: 20, width: '100%', maxHeight: '70vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Belangrijke telefoonnummers</h3>
+              <button onClick={() => setContactenOpen(false)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#888', padding: '0 4px' }}>✕</button>
+            </div>
+            {noodcontacten.map((c, i) => (
+              <div key={i} className="contact-rij">
+                <div className="contact-info">
+                  <div className="contact-naam">
+                    {c.naam}
+                    {c.relatie && <span className="contact-relatie">{c.relatie}</span>}
+                  </div>
+                  {c.notities && <div className="contact-notities">{c.notities}</div>}
+                </div>
+                <a href={`tel:${c.telefoon}`} className="contact-bel-btn">📞 {c.telefoon}</a>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {actieveTab === 'planning' && (
         <PlanningReadOnly
