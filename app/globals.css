@@ -881,6 +881,56 @@ tr:last-child td { border-bottom: none; }
 .materiaal-rij-5 { display: grid; grid-template-columns: 1fr 55px 65px 80px 32px; gap: 6px; align-items: center; }
 .materiaal-rij-5 input { padding: 8px 6px; }
 
+/* === NOODCONTACTEN === */
+.contact-rij {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--grens);
+}
+.contact-rij:last-of-type { border-bottom: none; }
+.contact-info { flex: 1; min-width: 0; }
+.contact-naam { font-weight: 600; font-size: 14px; }
+.contact-relatie {
+  display: inline-block;
+  background: var(--goud-licht);
+  color: var(--goud);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  margin-left: 6px;
+}
+.contact-notities { font-size: 12px; color: var(--grijs); margin-top: 2px; }
+.contact-bel-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #e6f7e6;
+  color: #237804;
+  border: 1px solid #b7eb8f;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.contact-bel-btn:hover { background: #d9f7be; }
+.contact-acties { display: flex; gap: 6px; flex-shrink: 0; }
+.contact-form-inline {
+  background: var(--grijs-licht);
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 /* === PRINT === */
 @media print {
   @page { margin: 0; size: A4 portrait; }

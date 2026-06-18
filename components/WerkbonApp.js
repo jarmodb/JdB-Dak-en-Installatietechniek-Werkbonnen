@@ -983,6 +983,7 @@ export default function WerkbonApp() {
         <MedewerkersView
           medewerkers={medewerkers}
           werkbonnen={werkbonnen}
+          instellingen={instellingen}
           onVervers={laadMedewerkers}
           onTerug={toonOverzicht}
         />
@@ -1433,6 +1434,7 @@ function InstellingenView({ instellingen, onChange }) {
   const [logoBezig, setLogoBezig] = useState(false)
   const [offerteLogoBezig, setOfferteLogoBezig] = useState(false)
   const [avBezig, setAvBezig] = useState(false)
+  const [contactBewerken, setContactBewerken] = useState(null)
   const logoInputRef = useRef(null)
   const offerteLogoInputRef = useRef(null)
   const avInputRef = useRef(null)
@@ -1440,6 +1442,26 @@ function InstellingenView({ instellingen, onChange }) {
   useEffect(() => { setForm({ ...instellingen }) }, [JSON.stringify(instellingen)])
 
   function sv(k, v) { setForm(f => ({ ...f, [k]: v })) }
+
+  const noodcontacten = form.noodcontacten || []
+
+  function contactNieuw() { setContactBewerken({ _index: -1, naam: '', telefoon: '', relatie: '', notities: '' }) }
+  function contactWijzig(k, v) { setContactBewerken(c => ({ ...c, [k]: v })) }
+  function contactOpslaan() {
+    if (!contactBewerken?.naam?.trim()) return
+    const { _index, ...data } = contactBewerken
+    const lijst = [...noodcontacten]
+    if (_index === -1) lijst.push(data)
+    else lijst[_index] = data
+    sv('noodcontacten', lijst)
+    setContactBewerken(null)
+  }
+  function contactVerwijder(i) {
+    if (!window.confirm('Contact verwijderen?')) return
+    const lijst = [...noodcontacten]
+    lijst.splice(i, 1)
+    sv('noodcontacten', lijst)
+  }
 
   async function opslaan() {
     setBezig(true)
@@ -1616,6 +1638,44 @@ function InstellingenView({ instellingen, onChange }) {
             </div>
           </div>
         </div>
+      </div>
+      <div className="sectie">
+        <div className="sectie-titel">Belangrijke telefoonnummers</div>
+        <p style={{ fontSize: 13, color: '#888', marginBottom: 12 }}>
+          Handige contacten voor noodgevallen of vaste leveranciers — zichtbaar in het personeelsscherm.
+        </p>
+        {noodcontacten.map((c, i) => (
+          <div key={i} className="contact-rij">
+            <div className="contact-info">
+              <div className="contact-naam">
+                {c.naam}
+                {c.relatie && <span className="contact-relatie">{c.relatie}</span>}
+              </div>
+              <div style={{ fontSize: 13, color: '#555', marginTop: 2 }}>{c.telefoon}</div>
+              {c.notities && <div className="contact-notities">{c.notities}</div>}
+            </div>
+            <div className="contact-acties">
+              <button className="btn btn-licht" style={{ padding: '4px 10px', fontSize: 13 }} onClick={() => setContactBewerken({ _index: i, ...c })}>✏️</button>
+              <button className="btn btn-licht" style={{ padding: '4px 10px', fontSize: 13 }} onClick={() => contactVerwijder(i)}>🗑️</button>
+            </div>
+          </div>
+        ))}
+        {contactBewerken ? (
+          <div className="contact-form-inline">
+            <div className="rij-2">
+              <div className="veld"><label>Naam</label><input value={contactBewerken.naam} onChange={e => contactWijzig('naam', e.target.value)} placeholder="Jan de Vries" autoFocus /></div>
+              <div className="veld"><label>Telefoonnummer</label><input type="tel" value={contactBewerken.telefoon} onChange={e => contactWijzig('telefoon', e.target.value)} placeholder="06-12345678" /></div>
+            </div>
+            <div className="veld"><label>Relatie / functie</label><input value={contactBewerken.relatie} onChange={e => contactWijzig('relatie', e.target.value)} placeholder="Bijv. Accountant, Verzekeraar, Leverancier" /></div>
+            <div className="veld"><label>Notities</label><input value={contactBewerken.notities} onChange={e => contactWijzig('notities', e.target.value)} placeholder="Optionele opmerking" /></div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-primair" onClick={contactOpslaan}>✓ Opslaan</button>
+              <button className="btn btn-licht" onClick={() => setContactBewerken(null)}>Annuleer</button>
+            </div>
+          </div>
+        ) : (
+          <button className="btn btn-licht" style={{ marginTop: noodcontacten.length > 0 ? 10 : 0 }} onClick={contactNieuw}>+ Contact toevoegen</button>
+        )}
       </div>
     </div>
   )

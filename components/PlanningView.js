@@ -291,7 +291,7 @@ function AfspraakForm({ form, setForm, klanten, werkbonnen, medewerkers, onOpsla
 }
 
 // ── Medewerkers beheer ────────────────────────────────────────────────
-export function MedewerkersView({ medewerkers, werkbonnen = [], onVervers, onTerug }) {
+export function MedewerkersView({ medewerkers, werkbonnen = [], instellingen = {}, onVervers, onTerug }) {
   const [pinZichtbaar, setPinZichtbaar] = useState({})
   const [emailBewerken, setEmailBewerken] = useState({})
   const [emailWaarden, setEmailWaarden] = useState({})
@@ -354,6 +354,23 @@ export function MedewerkersView({ medewerkers, werkbonnen = [], onVervers, onTer
         <button className="form-terug" onClick={onTerug}>← Terug</button>
         <button className="btn btn-primair" onClick={voegToe}>+ Medewerker</button>
       </div>
+      {(instellingen.noodcontacten || []).length > 0 && (
+        <div className="sectie">
+          <div className="sectie-titel">Belangrijke telefoonnummers</div>
+          {(instellingen.noodcontacten || []).map((c, i) => (
+            <div key={i} className="contact-rij">
+              <div className="contact-info">
+                <div className="contact-naam">
+                  {c.naam}
+                  {c.relatie && <span className="contact-relatie">{c.relatie}</span>}
+                </div>
+                {c.notities && <div className="contact-notities">{c.notities}</div>}
+              </div>
+              <a href={`tel:${c.telefoon}`} className="contact-bel-btn">📞 {c.telefoon}</a>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="sectie">
         <div className="sectie-titel">Medewerkers</div>
         <p style={{ color: '#888', fontSize: 13, marginBottom: 12 }}>
