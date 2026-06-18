@@ -964,7 +964,7 @@ export default function WerkbonApp() {
       {view === 'offertes' && <OfferteView klanten={klanten} producten={producten} onWerkbonAangemaakt={werkbonVanOfferte} msIngelogd={msIngelogd} instellingen={instellingen} />}
 
       {/* ── INSTELLINGEN ── */}
-      {view === 'instellingen' && <InstellingenView instellingen={instellingen} onChange={setInstellingen} />}
+      {view === 'instellingen' && Object.keys(instellingen).length > 0 && <InstellingenView instellingen={instellingen} onChange={setInstellingen} />}
 
       {/* ── TODOS ── */}
       {view === 'todos' && <TodoView />}
@@ -1429,8 +1429,7 @@ function avPadUitUrl(av_url) {
 // ── Instellingen ─────────────────────────────────────────────────────
 function InstellingenView({ instellingen, onChange }) {
   const [form, setForm] = useState({ ...instellingen })
-  const [bezig, setBezig] = useState(false)
-  const [opgeslagen, setOpgeslagen] = useState(false)
+  const [autosaveStatus, setAutosaveStatus] = useState(null) // null | 'opslaan' | 'opgeslagen'
   const [logoBezig, setLogoBezig] = useState(false)
   const [offerteLogoBezig, setOfferteLogoBezig] = useState(false)
   const [avBezig, setAvBezig] = useState(false)
@@ -1438,10 +1437,22 @@ function InstellingenView({ instellingen, onChange }) {
   const logoInputRef = useRef(null)
   const offerteLogoInputRef = useRef(null)
   const avInputRef = useRef(null)
+  const debounceRef = useRef(null)
+  const formRef = useRef(form)
+  useEffect(() => { formRef.current = form })
 
-  useEffect(() => { setForm({ ...instellingen }) }, [JSON.stringify(instellingen)])
+  function planAutosave() {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    setAutosaveStatus('opslaan')
+    debounceRef.current = setTimeout(async () => {
+      const { id, ...data } = formRef.current
+      const { error } = await supabase.from('instellingen').upsert({ id: 'singleton', ...data })
+      if (!error) { onChange({ id: 'singleton', ...data }); setAutosaveStatus('opgeslagen'); setTimeout(() => setAutosaveStatus(null), 2500) }
+      else { setAutosaveStatus(null); alert('Opslaan mislukt: ' + error.message) }
+    }, 1500)
+  }
 
-  function sv(k, v) { setForm(f => ({ ...f, [k]: v })) }
+  function sv(k, v) { setForm(f => ({ ...f, [k]: v })); planAutosave() }
 
   const noodcontacten = form.noodcontacten || []
 
@@ -1464,12 +1475,12 @@ function InstellingenView({ instellingen, onChange }) {
   }
 
   async function opslaan() {
-    setBezig(true)
-    const { id, ...data } = form
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    setAutosaveStatus('opslaan')
+    const { id, ...data } = formRef.current
     const { error } = await supabase.from('instellingen').upsert({ id: 'singleton', ...data })
-    if (!error) { onChange({ id: 'singleton', ...data }); setOpgeslagen(true); setTimeout(() => setOpgeslagen(false), 3000) }
-    else alert('Opslaan mislukt: ' + error.message)
-    setBezig(false)
+    if (!error) { onChange({ id: 'singleton', ...data }); setAutosaveStatus('opgeslagen'); setTimeout(() => setAutosaveStatus(null), 2500) }
+    else { setAutosaveStatus(null); alert('Opslaan mislukt: ' + error.message) }
   }
 
   async function handleLogo(e) {
@@ -1536,12 +1547,11 @@ function InstellingenView({ instellingen, onChange }) {
 
   return (
     <div className="view-content with-bottom-nav">
-      <div className="top-acties">
-        <div />
-        <button className="btn btn-primair" onClick={opslaan} disabled={bezig}>
-          {bezig ? 'Opslaan...' : opgeslagen ? '✓ Opgeslagen!' : '✓ Opslaan'}
-        </button>
-      </div>
+      {autosaveStatus && (
+        <div className={`autosave-toast ${autosaveStatus}`}>
+          {autosaveStatus === 'opslaan' ? '⏳ Opslaan...' : '✓ Opgeslagen'}
+        </div>
+      )}
       <div className="sectie">
         <div className="sectie-titel">Logo</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 }}>
