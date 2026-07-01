@@ -345,6 +345,7 @@ export default function WerkbonApp() {
   const [changelogOpen, setChangelogOpen] = useState(false)
   const [autosaveStatus, setAutosaveStatus] = useState(null)
   const [instellingen, setInstellingen] = useState({})
+  const [gebruiker, setGebruiker] = useState(null)
   const fotoInputRef = useRef(null)
   const bonPrintRef = useRef(null)
   const autoSavePdfRef = useRef(false)
@@ -403,6 +404,7 @@ export default function WerkbonApp() {
     window.history.replaceState({ view: 'overzicht' }, '')
     laadAlles()
     msGetAccount().then(account => setMsIngelogd(!!account))
+    supabase.auth.getUser().then(({ data }) => setGebruiker(data?.user || null))
 
     const channels = [
       supabase.channel('wb-sync').on('postgres_changes', { event: '*', schema: 'public', table: 'werkbonnen' }, () => { setSyncActief(true); laadWerkbonnen(); setTimeout(() => setSyncActief(false), 1500) }).subscribe(),
@@ -885,6 +887,13 @@ export default function WerkbonApp() {
   const gefilterdeWerkbonnen = statusFilter === 'alle' ? werkbonnen : werkbonnen.filter(b => (b.status || 'open') === statusFilter)
   const totalen = bereken(werkdagen, formulier.uurtarief, materialen)
   const toonNav = !['formulier', 'detail', 'medewerkers'].includes(view)
+  const rol = gebruiker?.app_metadata?.role || 'medewerker'
+  const isAdmin = rol === 'admin'
+
+  async function uitloggen() {
+    await supabase.auth.signOut()
+    window.location.href = '/login'
+  }
   const headerTitel = view === 'overzicht' ? 'JdB Werkbonnen' : view === 'klanten' ? 'Klanten' : view === 'producten' ? 'Producten' : view === 'planning' ? 'Planning' : view === 'todos' ? 'Taken' : view === 'medewerkers' ? 'Medewerkers' : view === 'offertes' ? 'Offertes' : view === 'instellingen' ? 'Instellingen' : view === 'uren' ? 'Uren' : view === 'formulier' ? (bewerkModus ? 'Bewerken' : 'Nieuwe werkbon') : huidigeBon?.nummer || ''
 
   return (
@@ -906,6 +915,9 @@ export default function WerkbonApp() {
           </button>
           <button className="btn-changelog-header" onClick={() => setChangelogOpen(true)} title="Wat is er nieuw?">
             🆕
+          </button>
+          <button className="btn-ms-header" onClick={uitloggen} title="Uitloggen">
+            🔓
           </button>
         </div>
       </header>
@@ -1343,9 +1355,11 @@ export default function WerkbonApp() {
           <button className={view === 'offertes' ? 'actief' : ''} onClick={() => navigeer('offertes')}>
             <span className="nav-icon">📄</span><span className="nav-label">Offertes</span>
           </button>
-          <button className={view === 'instellingen' ? 'actief' : ''} onClick={() => navigeer('instellingen')}>
-            <span className="nav-icon">⚙</span><span className="nav-label">Instellingen</span>
-          </button>
+          {isAdmin && (
+            <button className={view === 'instellingen' ? 'actief' : ''} onClick={() => navigeer('instellingen')}>
+              <span className="nav-icon">⚙</span><span className="nav-label">Instellingen</span>
+            </button>
+          )}
         </nav>
       )}
 
